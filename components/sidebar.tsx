@@ -481,18 +481,23 @@ export function Sidebar() {
             </div>
           </div>
 
-          <div className="px-4 pb-3">
+          <div className="px-4 pb-2 pt-3">
             {/*
              * Nút GHOST, không phải khối đậm: `bg-primary` full-width từng là
              * vật nặng nhất trên màn hình, đè ngang lên nội dung chat. Vẫn phải
              * đọc ra là hành động chính nên giữ icon + chữ `ui` + hàng 36px và
              * đổi nền lúc hover. Dấu focus toàn cục ở `@layer base` đã lo phần
              * bàn phím.
+             *
+             * Nền `bg-raised` sẵn có của ghost gần như trùng nền `bg-sunken`
+             * của sidebar: nút hoà vào khoảng trắng, đọc ra như một vùng mờ
+             * chứ không phải một nút. Viền `border-subtle` là ranh giới tối
+             * thiểu để tách nút khỏi khoảng trắng mà không thành khối đậm.
              */}
             <button
               type="button"
               onClick={handleNewChat}
-              className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-ui font-medium text-secondary transition-colors duration-150 hover:bg-raised hover:text-primary"
+              className="flex h-9 w-full items-center gap-2 rounded-lg border border-subtle bg-surface px-3 text-ui font-medium text-secondary transition-colors duration-150 hover:border-default hover:bg-raised hover:text-primary"
             >
               <Plus size={15} />
               <span>Cuộc trò chuyện mới</span>
@@ -528,7 +533,12 @@ export function Sidebar() {
             </div>
           </div>
 
-          <div className="no-scrollbar flex-1 space-y-1 overflow-y-auto px-3 py-1">
+          {/*
+           * Đường kẻ dưới vùng điều khiển: tách ô tìm kiếm khỏi danh sách chat.
+           * Cùng lý do với đường kẻ trên ở `backup-reminder.tsx` — nếu không,
+           * vùng điều khiển và danh sách cùng nền nên mắt đọc thành một khối.
+           */}
+          <div className="no-scrollbar flex-1 space-y-1 overflow-y-auto border-t border-subtle px-3 py-1">
             {showingSearch ? (
               <div aria-busy={isSearching} className="flex flex-col gap-1">
                 {visibleResults === null ? (

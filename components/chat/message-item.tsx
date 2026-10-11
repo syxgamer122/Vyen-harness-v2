@@ -6,7 +6,7 @@ import { MarkdownRenderer } from '@/components/markdown-renderer';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { BranchSwitcher } from '@/components/branch-switcher';
 import { MessageStatusBadge } from '@/components/message-status-badge';
-import { ChibiAvatar } from '@/components/chat/chibi-avatar';
+import { VyenMark } from '@/components/vyen-logo';
 import { sanitizeContent, getFinishInfo } from '@/lib/chat-tree-persistence';
 import { stripEmulatedToolMarkup } from '@/lib/text-tool-guard';
 import { ToolTrace, buildToolTrace, displayText, type TimelineSegment } from '@/components/chat/tool-trace';
@@ -287,24 +287,28 @@ export const MessageItem = memo(
 
           {/*
            * BONG BÓT TRUYỆN TRANH — nét mực 2px, bo bất đối xứng, đuôi chỉ vẽ
-           * tay ở góc dưới, và avatar chibi đứng NGOÀI bubble (không phải trong).
+           * tay ở góc dưới. KHÔNG có avatar: `.user-note` đã mang nền nhấn
+           * nhạt đủ để mắt đọc ra đó là lời người, nên một dấu hiệu thứ hai
+           * chỉ tốn chỗ mà không thêm thông tin.
            *
-           * Avatar đứng ngoài là cố ý: đặt nó trong bubble thì nó thành một ô
-           * tròn thứ hai nữa trong hộp, và mắt phải đọc ba lớp thay vì hai.
-           *
-           * Cụm bubble+avatar là MỘT hàng: `ml-auto` đẩy cả cụm sang phải, nên
-           * mép phải của bubble vẫn chạm mép phải của cột hội thoại — giữ được
-           * bất biến gutter mà `tests/design-system.test.ts` canh.
+           * Bubble là MỘT hàng: `ml-auto` đẩy nó sang phải, nên mép phải của
+           * bubble vẫn chạm mép phải của cột hội thoại — giữ được bất biến
+           * gutter mà `tests/design-system.test.ts` canh. `justify-end` giữ
+           * đúng điều đó khi hàng rộng hơn bubble: tin ngắn bám mép phải,
+           * không bị đẩy về giữa hàng.
            */}
-          <div className="ml-auto flex max-w-[76%] items-end justify-end gap-2">
-            <ChibiAvatar side="user" />
+          <div className="ml-auto flex max-w-[72%] items-end justify-end">
             {/*
              * `.user-note` (globals.css) — khối compact: bo 12px (`xl`), nền nhấn
              * nhạt, KHÔNG bóng. Bong bóng cũ bo 16px + `lift-sm`; §15.1 điểm 2
              * đổi vai trò: bóng và khung dành cho thứ cần tách (code, diff,
              * bằng chứng, yêu cầu quyết định), không dành cho lời nói.
-             * Trần 76% của cả cụm (avatar 26px + gap 8px nằm trong đó) để phần
-             * chữ của người dùng đứng quanh mức 72% cột hội thoại.
+             *
+             * Trần 72% là trần của CHÍNH bubble, ăn đúng mức DESIGN.md §15.1
+             * nêu cho lời người. Trước khi gỡ avatar, trần 76% đặt trên cả cụm
+             * nên bubble phải chia chỗ cho avatar 26px + gap 8px, và phần chữ
+             * thực tế chỉ còn quanh 72%; giữ nguyên 76% sau khi gỡ avatar là
+             * bubble nở thêm 34px so với thiết kế.
              */}
             <div className="user-note">
             {m.experimental_attachments && m.experimental_attachments.length > 0 && (
@@ -593,10 +597,12 @@ export const MessageItem = memo(
            * hộp viền làm mọi khối trông cùng độ nổi, nên mắt phải tự đi tìm chỗ
            * quan trọng — đúng thứ điểm 1 cấm.
            *
-           * Avatar CHỈ hiện ở tin mở khối (`runPosition === 'start'`). Tin thứ
-           * hai trở đi giữ nguyên cột bằng một ô đệm cùng kích thước (26px) chứ
-           * không bỏ hẳn: bỏ đệm thì chữ thụt sang trái 34px so với tin đầu
-           * khối, tức cùng một đoạn văn mà hai lề tuỳ vị trí.
+           * Dấu hiệu CHỈ hiện ở tin mở khối (`runPosition === 'start'`), và
+           * là dấu thương hiệu Vyen chứ không phải mặt vẽ tay: một hệ phải có
+           * MỘT nét, mọi bộ phận cùng bút — đây là lý do gỡ hẳn avatar chibi.
+           * Tin thứ hai trở đi giữ nguyên cột bằng một ô đệm cùng kích thước
+           * (26px) chứ không bỏ hẳn: bỏ đệm thì chữ thụt sang trái 34px so với
+           * tin đầu khối, tức cùng một đoạn văn mà hai lề tuỳ vị trí.
            *
            * Khi timeline bật (`timeline !== null`), model đã xen lẫn lời với
            * tool, nên ở đây chỉ lấy ĐOẠN LỜI ĐẦU TIÊN. Các đoạn lời sau tool do
@@ -607,7 +613,7 @@ export const MessageItem = memo(
           {showBubble && (
           <div className="flex items-start gap-2">
             {runPosition === 'start' ? (
-              <ChibiAvatar side="bot" className="mt-1" />
+              <VyenMark size={26} className="mt-1 flex-shrink-0" />
             ) : (
               <span aria-hidden="true" className="mt-1 h-[26px] w-[26px] flex-shrink-0" />
             )}

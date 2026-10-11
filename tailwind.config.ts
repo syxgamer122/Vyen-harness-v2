@@ -59,6 +59,18 @@ const hex = {
 
   /* NHẤN — họ xanh của logo mới (gradient não), thay teal cũ `#2a7360`. */
   accent: '#0B7A53',
+
+  /*
+   * MÀU THƯƠNG HIỆU — đo từ pixel ảnh logo, KHÁC hệ màu giao diện ở trên.
+   * `brand-lime` chỉ 1.9:1 nên TUYỆT ĐỐI không làm chữ hay viền; `brand` 3.4:1
+   * và `brand-deep` 5.4:1 đạt ngưỡng 3:1 cho vật thể đồ hoạ.
+   * Khối `LIME/MID/DARK/FACE` trong `components/vyen-logo.tsx` dùng đúng 4 giá
+   * trị này — sửa một bên thì phải sửa cả bên kia.
+   */
+  'brand-lime': '#7CE652',
+  'brand-mid': '#5ABF5A',
+  'brand': '#126644',
+  'brand-deep': '#114F36',
   /*
    * `accent-dim` là vật thể ĐỒ HOẠ (cột biểu đồ, chấm trạng thái), không phải
    * nền chữ — nên nó chịu ngưỡng 3:1 của WCAG 1.4.11 chứ không phải 4.5:1.
@@ -209,7 +221,20 @@ const config: Config = {
          * component migrate xong — xem khối ALIAS TẠM ở globals.css.
          * Mỗi dòng là MỘT cách viết khác của đúng token mới ở trên.
          */
-        brand: token('--accent'),
+        /*
+       * Bảng màu THƯƠNG HIỆU — đo từ pixel ảnh logo, khác hệ màu giao diện.
+       * `brand-lime` 1.9:1 nên chỉ để trang trí, tuyệt đối không làm chữ hay
+       * viền. Xem khối `LIME/MID/DARK/FACE` trong `components/vyen-logo.tsx` —
+       * sửa ở đây thì sửa luôn file đó.
+       *
+       * `brand` ĐÃ đổi nghĩa: trước nó trỏ `--accent` (màu giao diện), giờ là
+       * xanh đậm của logo. Thứ tự khai ở đây quyết định thắng, nên `token()`
+       * của alias cũ đã bị gỡ — nếu hạng ưu tiên class `brand-*` chỉ cần
+       * chạy class đó xem có ra màu logo không.
+       */
+      'brand-lime': token('--brand-lime'),
+      'brand-mid': token('--brand-mid'),
+      'brand-deep': token('--brand-deep'),
         'panel-bg': token('--panel-bg'),
         'panel-soft': token('--panel-soft'),
         'border-hover': token('--border-hover'),

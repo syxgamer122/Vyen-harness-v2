@@ -117,8 +117,11 @@
     --surface-bubble: 255 255 255; /* = --bg-surface */
     --surface-muted: 245 245 245; /* = --bg-raised */
     --surface-code: 245 245 245; /* = --bg-raised */
-    --brand: 11 122 83; /* = --accent */
-    --brand-accent: 179 38 30; /* = --danger — dùng trực tiếp bởi vyen-logo.tsx */
+    --brand-lime: 124 230 82; /* lime của logo — TRANG TRÍ, 1.9:1, không làm chữ */
+    --brand-mid: 90 191 90; /* vòng giữa */
+    --brand: 18 102 68; /* xanh đậm của logo, 3.4:1 — đạt ngưỡng vật thể đồ hoạ */
+    --brand-deep: 17 79 54; /* màu mặt (mắt, miệng), 5.4:1 */
+    --brand-accent: 179 38 30; /* = --danger */
     --foreground: 24 24 27; /* = --text-primary */
     --muted-foreground: 87 87 87; /* = --text-secondary */
   }

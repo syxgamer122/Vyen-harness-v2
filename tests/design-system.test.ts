@@ -45,6 +45,14 @@ describe('DESIGN.md — Vyen design-system contract', () => {
      */
     '#949494',
     /*
+     * MÀU LOGO — đo từ pixel ảnh thương hiệu, không phải màu giao diện. Chỉ
+     * `vyen-logo.tsx` và các file SVG thương hiệu dùng tới. `lime` 1.9:1 nên
+     * TUYỆT ĐỐI không làm chữ hay viền; `dark` 3.4:1 và `face` 5.4:1 đạt ngưỡng
+     * 3:1 cho vật thể đồ hoạ. Sửa ở đây thì sửa luôn khối `LIME/MID/DARK/FACE`
+     * trong `components/vyen-logo.tsx`.
+     */
+    '#7ce652', '#5abf5a', '#126644', '#114f36',
+    /*
      * Nhấn & trạng thái. `accent` `#0b7a53` (họ xanh logo mới) đo 5.35:1 trên
      * trắng, 5.00:1 trên `#f7f7f7`. `accent-dim` `#449879` là VẬT THỂ ĐỒ HOẠ
      * (cột biểu đồ, chấm trạng thái) nên chịu ngưỡng 3:1 chứ không phải 4.5:1 —
@@ -501,7 +509,14 @@ describe('DESIGN.md — Vyen design-system contract', () => {
      * này KHÔNG đổi — đó là cách phát hiện token "sinh ra nhưng không vẽ ra
      * gì mới".
      */
-    expect(configHexes.size, 'không đọc được mảng `hex` trong tailwind.config.ts').toBe(21);
+    /*
+     * 21 → 24 là 3 màu THƯƠNG HIỆU (`brand-lime` / `brand-mid` / `brand-deep`)
+     * đo từ pixel ảnh logo. Cả ba là giá trị mới, không trùng token nào sẵn có,
+     * nên số giá trị phân biệt lên đúng ba. Nếu chúng từng đè lên một giá trị
+     * sẵn có thì con số này KHÔNG đổi — đó là cách phát hiện token "sinh ra
+     * nhưng không vẽ ra gì mới".
+     */
+    expect(configHexes.size, 'không đọc được mảng `hex` trong tailwind.config.ts').toBe(25);
 
     /* Mỗi hex trong PALETTE_TOKENS phải tồn tại thật trong config. */
     for (const h of PALETTE_TOKENS) {

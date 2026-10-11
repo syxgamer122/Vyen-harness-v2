@@ -147,12 +147,13 @@ session trước đã xoá `tests/telemetry-tab.test.ts` — không phải do đ
 - **Sửa** `scripts/check-docs-sync.cjs:61` — nó loại `node_modules`/`.git`/`.next`
   nhưng không loại `.audit-backup-*`, nên đợt này dựng lên 30 lỗi docs giả từ bản
   backup đã lỗi thời. Đây là script quét cây thư mục vì dự án không có git.
-- `npm run docs:check` VẪN đỏ sau khi sửa trên, vì còn ~9 lệch dòng thật có sẵn
-  từ session dead-code trước (`DOCS_TSX_ARCHITECTURE.md:200` + số file test ghi
-  225 thực tế 220). **Không sửa ở đợt này** — cần một đợt riêng cập nhật docs.
-- `react/use-streaming-text.ts`: không có call site nào, nhưng được mô tả tại
-  `DOCS_TSX_ARCHITECTURE.md:442` như một tầng kiến trúc. Xoá sẽ làm docs sai
-  thêm. Giữ lại, nêu ở đây để user quyết.
+- `npm run docs:check` VẪN đỏ sau khi sửa trên, vì còn lệch dòng thật có sẵn
+  từ session dead-code trước (chủ yếu do `DOCS_TSX_ARCHITECTURE.md` đã bị gỡ
+  2026-10-11, nên các điểm lệch thuộc về doc đó đã hết; phần còn lại là số file
+  test ghi 220 thực tế 224). **Không sửa ở đợt này** — cần một đợt riêng cập nhật docs.
+- `react/use-streaming-text.ts`: không có call site nào. Trước đây được giữ lại vì
+  `DOCS_TSX_ARCHITECTURE.md:442` mô tả nó như một tầng kiến trúc; doc đó đã gỡ
+  nên lý do giữ không còn. **Cần user quyết** — xoá hay giữ.
 
 ## Còn lại — cần user quyết
 

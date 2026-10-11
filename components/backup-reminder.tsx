@@ -76,9 +76,14 @@ export function BackupReminder({ chatCount }: { chatCount: number }) {
    * KHÔNG dùng recipe `notice-warn` nữa: nó tô nền cả khối, khiến một dòng cảnh
    * báo nặng hơn cả tiêu đề nhóm ngày. Cảnh báo này chỉ là gợi nhớ, nên đi
    * bằng màu chữ `warning` + icon trên nền trong, đúng vai "chữ đọc".
+   *
+   * Đường kẻ `border-t` là ranh giới giữa vùng điều khiển và vùng lịch sử:
+   * nút "Cuộc trò chuyện mới", dòng cảnh báo này và ô tìm kiếm từng dính thành
+   * MỘT mảng mờ vì cả ba đều nền trong trên nền `bg-sunken`. Một đường kẻ
+   * tách chúng ra mà không thêm khối mới.
    */
   return (
-    <div role="status" className="mx-2 mt-2 rounded-lg px-2 py-1">
+    <div role="status" className="mx-2 mt-2 border-t border-subtle px-2 pb-2 pt-2">
       <div className="flex items-center gap-2">
         <HardDriveDownload
           size={14}

@@ -23,7 +23,6 @@ const ROOT = path.resolve(__dirname, '..');
 const CONTRACT_DOCS = [
   'README.md',
   'DESIGN.md',
-  'DOCS_TSX_ARCHITECTURE.md',
   'TEST_INFRA.md',
   'docs/DESKTOP_ARCHITECTURE.md',
   'docs/DESKTOP-CHOICE.md',
@@ -134,125 +133,18 @@ for (const doc of DOCS) {
   });
 }
 
-// Kiểm tra đồng bộ tuyệt đối bảng mã nguồn TSX trong DOCS_TSX_ARCHITECTURE.md
-const tsxDocPath = path.join(ROOT, 'DOCS_TSX_ARCHITECTURE.md');
-if (fs.existsSync(tsxDocPath)) {
-  const tsxDocText = fs.readFileSync(tsxDocPath, 'utf8');
-  const tsxFilesActual = tracked.filter((p) => p.endsWith('.tsx')).sort();
-  const tsxActualSet = new Set(tsxFilesActual);
-
-  const tableRows = tsxDocText.split(/\r?\n/).filter((l) => /\|\s*\d+\s*\|\s*([^|]*)\|\s*`([^`]+\.tsx)`\s*\|\s*([0-9,]+)\s*\|/.test(l));
-
-  const tableFiles = new Set();
-  let tableSum = 0;
-
-  for (const row of tableRows) {
-    const m = row.match(/\|\s*\d+\s*\|\s*([^|]*)\|\s*`([^`]+\.tsx)`\s*\|\s*([0-9,]+)\s*\|/);
-    if (m) {
-      const file = m[2];
-      const reportedLines = parseInt(m[3].replace(/,/g, ''), 10);
-      tableSum += reportedLines;
-
-      if (tableFiles.has(file)) {
-        problems.push(['DOCS_TSX_ARCHITECTURE.md', 136, 'trùng lặp file bảng §3', file]);
-      }
-      tableFiles.add(file);
-
-      const absFile = path.join(ROOT, file);
-      if (!fs.existsSync(absFile)) {
-        problems.push(['DOCS_TSX_ARCHITECTURE.md', 136, 'file không tồn tại', file]);
-      } else {
-        const content = fs.readFileSync(absFile, 'utf8');
-        const splitLines = content.split('\n').length;
-        if (reportedLines !== splitLines) {
-          problems.push(['DOCS_TSX_ARCHITECTURE.md', 136, 'lệch dòng tsx', `${file}: bảng ghi ${reportedLines}, thực tế split=${splitLines}`]);
-        }
-      }
-    }
-  }
-
-  // Đối soát tập hợp 2 chiều: bảng §3 ↔ codebase
-  for (const f of tsxFilesActual) {
-    if (!tableFiles.has(f)) {
-      problems.push(['DOCS_TSX_ARCHITECTURE.md', 136, 'thiếu file trong bảng §3', f]);
-    }
-  }
-  for (const f of tableFiles) {
-    if (!tsxActualSet.has(f)) {
-      problems.push(['DOCS_TSX_ARCHITECTURE.md', 136, 'thừa file trong bảng §3', f]);
-    }
-  }
-
-  // Kiểm tra tổng dòng thực tế
-  let actualWcTotal = 0;
-  let actualSplitTotal = 0;
-  for (const f of tsxFilesActual) {
-    const c = fs.readFileSync(path.join(ROOT, f), 'utf8');
-    actualWcTotal += (c.match(/\n/g) || []).length;
-    actualSplitTotal += c.split('\n').length;
-  }
-
-  if (tableSum !== actualSplitTotal) {
-    problems.push(['DOCS_TSX_ARCHITECTURE.md', 136, 'tổng dòng bảng §3 lệch codebase', `cột cộng ra ${tableSum}, codebase split=${actualSplitTotal}`]);
-  }
-
-  // Kiểm tra tổng dòng trong văn bản
-  const totalRegex = /\*\*([0-9,]+)\s*dòng code\*\*\s*loại trừ trailing newlines,\s*tương đương\s*\*\*([0-9,]+)\s*dòng\*\*/;
-  const totalMatch = tsxDocText.match(totalRegex);
-  if (!totalMatch) {
-    problems.push(['DOCS_TSX_ARCHITECTURE.md', 4, 'thiếu tổng dòng trong văn bản', 'Không tìm thấy mẫu định dạng tổng dòng code']);
-  } else {
-    const docWcTotal = parseInt(totalMatch[1].replace(/,/g, ''), 10);
-    const docSplitTotal = parseInt(totalMatch[2].replace(/,/g, ''), 10);
-    if (docWcTotal !== actualWcTotal) {
-      problems.push(['DOCS_TSX_ARCHITECTURE.md', 4, 'tổng dòng wc -l', `doc ghi ${docWcTotal}, thực tế ${actualWcTotal}`]);
-    }
-    if (docSplitTotal !== actualSplitTotal) {
-      problems.push(['DOCS_TSX_ARCHITECTURE.md', 4, 'tổng dòng split', `doc ghi ${docSplitTotal}, thực tế ${actualSplitTotal}`]);
-    }
-  }
-
-  // Kiểm tra đồng bộ dòng của toàn bộ 58 file ở mục §4
-  const sec4Start = tsxDocText.indexOf('## 4. ĐẶC TẢ CHI TIẾT');
-  const sec4End = tsxDocText.indexOf('## 5. ĐỐI SOÁT');
-  if (sec4Start !== -1 && sec4End !== -1) {
-    const sec4Text = tsxDocText.substring(sec4Start, sec4End);
-    const bulletRegex = /- \*\*`([^`]+\.tsx)`\s*\(([0-9,]+)\s*dòng[^)]*\)\*\*:/g;
-    let bm;
-    const sec4Files = new Set();
-    while ((bm = bulletRegex.exec(sec4Text)) !== null) {
-      const bFile = bm[1];
-      const bLines = parseInt(bm[2].replace(/,/g, ''), 10);
-      sec4Files.add(bFile);
-      const absFile = path.join(ROOT, bFile);
-      if (fs.existsSync(absFile)) {
-        const c = fs.readFileSync(absFile, 'utf8');
-        const split = c.split('\n').length;
-        if (bLines !== split) {
-          problems.push(['DOCS_TSX_ARCHITECTURE.md', 200, 'lệch dòng §4', `${bFile}: ghi ${bLines}, thực tế ${split}`]);
-        }
-      }
-    }
-    for (const f of tsxFilesActual) {
-      if (!sec4Files.has(f)) {
-        problems.push(['DOCS_TSX_ARCHITECTURE.md', 200, 'thiếu đặc tả file trong §4', f]);
-      }
-    }
-  }
-
-  // Kiểm tra số lượng test suite (168 tests/*.test.ts)
-  const testsActual = tracked.filter((p) => p.startsWith('tests/') && p.endsWith('.test.ts'));
-  const testCountRegex = /([0-9]+)\s*file\s*`tests\/\*\.test\.ts`/g;
-  for (const doc of ['DOCS_TSX_ARCHITECTURE.md', 'PROJECT.md', 'TEST_INFRA.md']) {
-    const docPathFull = path.join(ROOT, doc);
-    if (fs.existsSync(docPathFull)) {
-      const content = fs.readFileSync(docPathFull, 'utf8');
-      let tm;
-      while ((tm = testCountRegex.exec(content)) !== null) {
-        const statedCount = parseInt(tm[1], 10);
-        if (statedCount !== testsActual.length) {
-          problems.push([doc, 0, 'số file test', `doc ghi ${statedCount}, thực tế ${testsActual.length}`]);
-        }
+// Số file test mà doc ghi phải khớp `tests/*.test.ts` thật.
+const testsActual = tracked.filter((p) => p.startsWith('tests/') && p.endsWith('.test.ts'));
+const testCountRegex = /([0-9]+)\s*file\s*`tests\/\*\.test\.ts`/g;
+for (const doc of ['PROJECT.md', 'TEST_INFRA.md']) {
+  const docPathFull = path.join(ROOT, doc);
+  if (fs.existsSync(docPathFull)) {
+    const content = fs.readFileSync(docPathFull, 'utf8');
+    let tm;
+    while ((tm = testCountRegex.exec(content)) !== null) {
+      const statedCount = parseInt(tm[1], 10);
+      if (statedCount !== testsActual.length) {
+        problems.push([doc, 0, 'số file test', `doc ghi ${statedCount}, thực tế ${testsActual.length}`]);
       }
     }
   }
