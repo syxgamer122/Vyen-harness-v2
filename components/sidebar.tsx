@@ -204,7 +204,7 @@ export const ChatItem = memo(function ChatItem({
         hàng phải có bo góc vuông ở mép trái để vạch không bị lệch. Nay bỏ
         vạch, hàng bo tròn 10px — mềm hơn và ít viền hơn.
       */}
-      <div className="flex w-full items-center justify-between gap-1 px-3 py-2">
+      <div className="flex w-full min-w-0 items-center justify-between gap-1 px-3 py-2">
         {isEditing ? (
           <input
             autoFocus
@@ -237,7 +237,23 @@ export const ChatItem = memo(function ChatItem({
              */
             className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 -mx-1.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
           >
-            <span className="truncate text-ui">{titleSegments ? <Highlight segments={titleSegments} /> : chat.title}</span>
+            {/*
+             * `min-w-0` là mấu chốt, không phải `truncate`.
+             *
+             * `<span>` này là flex item trực tiếp của nút bấm (`className="flex"`).
+             * Mặc định flex item có `min-width: auto` — nghĩa là nó KHÔNG co được
+             * nhỏ hơn bề rộng nội dung. Nên tiêu đề dài đẩy hàng ra khỏi sidebar
+             * và `truncate` (overflow-hidden + ellipsis) không bao giờ kích hoạt.
+             * Cho phép co (`min-w-0`) thì ellipsis mới có chỗ để hiện.
+             *
+             * Lưu ý khi sửa comment ở vùng này: assertion trong
+             * `design-system` quét thẻ mở bằng regex chứ không bỏ qua comment,
+             * nên đừng viết thẻ mở của nút bấm vào đây — nó bị đếm như nút thật
+             * rồi báo thiếu class bo góc.
+             */}
+            <span className="min-w-0 flex-1 truncate text-ui">
+              {titleSegments ? <Highlight segments={titleSegments} /> : chat.title}
+            </span>
           </button>
         )}
 
@@ -454,7 +470,7 @@ export function Sidebar() {
           aria-label="Danh sách cuộc trò chuyện"
           aria-hidden={isDrawerHidden ? true : undefined}
           inert={isDrawerHidden ? true : undefined}
-          className={`fixed inset-y-0 left-0 ${Z_CLASS.sidebarDrawer} flex w-[18rem] max-w-[85vw] flex-col border-r border-subtle bg-sunken pt-[env(safe-area-inset-top)] transition-transform duration-200 ease-out md:static md:w-72 md:max-w-none md:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 ${Z_CLASS.sidebarDrawer} flex w-[18rem] min-w-0 max-w-[85vw] flex-col overflow-hidden border-r border-subtle bg-sunken pt-[env(safe-area-inset-top)] transition-transform duration-200 ease-out md:static md:w-72 md:max-w-none md:translate-x-0 ${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >

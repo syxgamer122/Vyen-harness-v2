@@ -1685,10 +1685,24 @@ export const Composer = memo(function Composer({
            *
            * `Ctrl+Enter` không được nhắc: không handler nào bắt, mà hứa phím không
            * tồn tại đúng là lỗi dòng này đang sửa.
+           *
+           * DÒNG NGẮN, phần còn lại để trong `title`. Bản đầy đủ dài 130 ký tự và
+           * ở 1366px nó BẺ HAI DÒNG, dồn sát đáy cửa sổ — đọc rối hơn là giúp.
+           * Người lần đầu chỉ cần biết phím gửi và phím xuống dòng; các phím
+           * tình huống ("khi AI đang chạy") chỉ hữu ích đúng lúc đó, mà lúc đó
+           * người dùng đang nhìn vào lượt chạy chứ không vào dòng gợi ý này.
+           * `title` giữ nguyên phần đó nên vẫn tìm được khi rê chuột.
            */}
-          {sendOnEnter
-            ? 'Enter để gửi · Shift+Enter xuống dòng · khi AI chạy: Enter = điều chỉnh việc đang làm, Alt+Enter = việc mới · Alt+↑ lấy lại · / lệnh nhanh'
-            : 'Enter xuống dòng · Alt+Enter gửi tin hoặc giao việc mới · Alt+↑ lấy lại · / lệnh nhanh'}
+          <div
+            className="mt-3 hidden text-center font-sans text-meta text-tertiary sm:block"
+            title={
+              sendOnEnter
+                ? 'Enter để gửi · Shift+Enter xuống dòng · khi AI chạy: Enter = điều chỉnh việc đang làm, Alt+Enter = việc mới · Alt+↑ lấy lại · / lệnh nhanh'
+                : 'Enter xuống dòng · Alt+Enter gửi tin hoặc giao việc mới · Alt+↑ lấy lại · / lệnh nhanh'
+            }
+          >
+            {sendOnEnter ? 'Enter để gửi · Shift+Enter xuống dòng' : 'Enter xuống dòng · Alt+Enter gửi tin'}
+          </div>
         </div>
       </div>
     </div>
