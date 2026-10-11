@@ -1,20 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
   <defs>
     <linearGradient id="vyen-full-outer" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#6BD265" />
-      <stop offset="100%" stop-color="#11835F" />
+      <stop offset="0%" stop-color="#81EE61" />
+      <stop offset="100%" stop-color="#0B7A53" />
     </linearGradient>
     <linearGradient id="vyen-full-inner" x1="6" y1="6" x2="26" y2="26" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#8CE587" />
-      <stop offset="100%" stop-color="#138762" />
+      <stop offset="100%" stop-color="#0B7A53" />
     </linearGradient>
     <linearGradient id="vyen-eye-left" x1="11.5" y1="13.5" x2="14.6" y2="13.5" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#11835F" />
-      <stop offset="100%" stop-color="#6BD265" />
+      <stop offset="0%" stop-color="#0B7A53" />
+      <stop offset="100%" stop-color="#81EE61" />
     </linearGradient>
     <linearGradient id="vyen-eye-right" x1="17.4" y1="13.5" x2="20.5" y2="13.5" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#6BD265" />
-      <stop offset="100%" stop-color="#11835F" />
+      <stop offset="0%" stop-color="#81EE61" />
+      <stop offset="100%" stop-color="#0B7A53" />
     </linearGradient>
   </defs>
   <!-- Outer Outline Ribbon -->
@@ -36,11 +36,11 @@
   />
   <!-- Circuit Eyes -->
   <line x1="11.5" y1="13.5" x2="14.6" y2="13.5" stroke="url(#vyen-eye-left)" stroke-width="1.8" stroke-linecap="round" />
-  <circle cx="11.5" cy="13.5" r="1.6" fill="#11835F" />
+  <circle cx="11.5" cy="13.5" r="1.6" fill="#0B7A53" />
   <line x1="17.4" y1="13.5" x2="20.5" y2="13.5" stroke="url(#vyen-eye-right)" stroke-width="1.8" stroke-linecap="round" />
-  <circle cx="20.5" cy="13.5" r="1.6" fill="#11835F" />
+  <circle cx="20.5" cy="13.5" r="1.6" fill="#0B7A53" />
   <!-- Circuit Mouth -->
-  <line x1="12.5" y1="19.5" x2="19.5" y2="19.5" stroke="#11835F" stroke-width="1.8" stroke-linecap="round" />
-  <circle cx="12.5" cy="19.5" r="1.6" fill="#11835F" />
-  <circle cx="19.5" cy="19.5" r="1.6" fill="#11835F" />
+  <line x1="12.5" y1="19.5" x2="19.5" y2="19.5" stroke="#0B7A53" stroke-width="1.8" stroke-linecap="round" />
+  <circle cx="12.5" cy="19.5" r="1.6" fill="#0B7A53" />
+  <circle cx="19.5" cy="19.5" r="1.6" fill="#0B7A53" />
 </svg>

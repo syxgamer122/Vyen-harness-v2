@@ -11,11 +11,10 @@
 - **Markdown + LaTeX + code highlight**: KaTeX cho công thức, Prism (18 ngôn ngữ) cho code, ảnh/bảng/GFM.
 - **Đính kèm tệp**: ảnh/PDF/text dưới 3MB tổng, lưu blob trong IndexedDB.
 - **Backup/Restore**: xuất/nạp toàn bộ cây hội thoại ra `.json` (đầy đủ nhánh + tệp kèm) hoặc `.md` (nhánh đang xem).
-- **BYOK**: người dùng tự dán API key riêng trong Settings (không persist), hoặc dùng key pool cấu hình trên server.
+- **BYOK**: người dùng tự dán API key riêng trong Settings. Key được lưu trong IndexedDB (`db.providers.apiKey`) dạng plaintext **trừ khi** bật "Lưu API key mã hoá" — khi đó chỉ còn con trỏ `@secure:` trong DB, key thật nằm trong kho của hệ điều hành. Server web có thể dùng key pool cấu hình riêng cho chế độ demo.
 - **Failover đa key + đa model**: server tự xoay API key theo health, thử chuỗi model thay thế khi upstream 404.
-- **Voice input**: bấm nút mic trong ô nhập, nói tiếng Việt — chữ hiện realtime, chạy 100% client (Web Speech API).
 - **Agent coding trong trình duyệt**: bấm 📁 kết nối thư mục làm việc (File System Access API — Chrome/Edge), agent liệt kê/đọc/tìm/sửa file trực tiếp trên máy bạn; **ghi file luôn qua modal diff phê duyệt** (duyệt mới ghi đĩa). fs_* tools chạy client-side (`onToolCall` + auto-resubmit), server không bao giờ chạm vào file.
-- **Tìm kiếm web**: bật nút 🌐 trong composer — lượt gửi kế tiếp tự tra cứu DuckDuckGo/SearXNG (top nguồn + đọc nguyên văn tối đa 2 trang), chèn vào ngữ cảnh kèm yêu cầu trích dẫn link. Dán URL trực tiếp trong tin nhắn sẽ được ưu tiên đọc nguyên trang. Proxy qua `/api/web` có chắn SSRF từng hop redirect.
+- **Tìm kiếm web**: bật nút 🌐 trong composer — lượt gửi kế tiếp tự tra cứu các engine công khai không cần key (DuckDuckGo HTML → DuckDuckGo Lite → Yahoo → DDG Instant Answer; lượt tìm tiếp tự đổi engine khi bị chặn) rồi đọc nguyên văn tối đa 2 trang, chèn vào ngữ cảnh kèm yêu cầu trích dẫn link. Dán URL trực tiếp trong tin nhắn sẽ được ưu tiên đọc nguyên trang. Proxy qua `/api/web` có chắn SSRF từng hop redirect.
 - **Menu lệnh "/"**: gõ `/` trong ô nhập để chèn lệnh hệ thống (`/plan`, `/mode`, `/summarize`, `/recipe`, `/skills`, `/memory`, `/tools`, `/cost`) hoặc **recipe** (icon chef-hat) — chọn recipe sẽ mở panel Recipes thay vì chèn text. Lọc không phân biệt dấu. Quản lý lệnh tuỳ biến trong Settings → Mở rộng.
   > Thư viện prompt mẫu của bản web chat cũ (5 mẫu "Dịch Trung - Việt", "Sửa lỗi chính tả"... cùng mục "Skills cũ" trong Cài đặt) **đã được gỡ** ở schema v18 — đó là rác của một trợ lý chat đa dụng, không thuộc coding agent.
 - **Recipes**: workflow đóng gói tái sử dụng — tham số, tool policy, model settings, kiểm chứng shell + retry, structured output JSON, sub-recipe. Lưu trong Dexie hoặc file `.vyen/recipes/*.yaml` trong workspace; chia sẻ qua liên kết `?recipe=` (chỉ mở preview, không tự chạy). Chạy headless: `npx tsx bin/vyen.ts run --recipe fix-tests.yaml --params path=src --output json` — exit code ≠ 0 khi checks còn fail (dùng CI được).
@@ -130,7 +129,7 @@ Hệ thống Cài đặt được tổ chức lại theo 6 nhóm chức năng tr
 
 - **AST Code Skeletonizer (Nén ngữ cảnh 80-90%)**:
   - Trích xuất khung xương cấu trúc mã nguồn cho đa ngôn ngữ (TypeScript, JavaScript, Python, Go, Rust).
-  - Giữ nguyên vẹn 100% imports, exports, interface, type definition, function signature và docstrings; thu gọn phần thân cài đặt `{ ... }` thành comment `/* implementation ... */`.
+  - Giữ nguyên vẹn 100% imports, exports, interface, type definition, function signature và docstrings; thu gọn phần thân cài đặt thành comment dạng `// ... [implementation: N lines omitted] ...` (Python: `pass  # ... [impl omitted] ...`).
   - Cho phép agent khảo sát toàn diện các module hàng nghìn dòng mà chỉ tốn vài trăm token prompt.
 - **Chỉ mục Ký hiệu & Call Hierarchy Workspace**:
   - Lập chỉ mục định nghĩa hàm, lớp, interface, kiểu dữ liệu toàn bộ workspace.
@@ -166,7 +165,7 @@ Hệ thống Cài đặt được tổ chức lại theo 6 nhóm chức năng tr
 - **Compaction**: hội thoại dài tự nén qua `/api/compact` — phần cũ thay bằng summary, dữ kiện quan trọng (file đã chạm, yêu cầu đã nêu) sống sót qua nhiều lần nén.
 - **Lead/Worker routing**: state machine tính lại từ toàn bộ lịch sử mỗi lượt (không lưu state riêng — sống sót qua reload), client chỉ override field `model` của request như đường recipe; server không cần biết. `/plan` chạy planner model đúng một lượt rồi nhả về routing thường.
 - **Thanh trượt suy luận**: 4 mức low/medium/high/max; mức nào khả dụng đọc từ metadata `/v1/models` (chuẩn OpenRouter) nên model không hỗ trợ không nhận tham số rác.
-- **Ngân sách tool**: tối đa 32 lần gọi tool mỗi lượt (đếm theo hội thoại, không reset khi client resubmit), tự chặn gọi trùng tham số và phát hiện doom-loop để bảo model đổi hướng; kết quả tool bị cắt ở 24.000 ký tự.
+- **Ngân sách tool**: `maxSteps` phía client **không còn trần** (đã bỏ `MAX_TOOL_CALLS_PER_TURN`) — chỉ còn bucket lịch sử + taint-tracking và phát hiện doom-loop để bảo model đổi hướng; kết quả tool bị cắt ở 24.000 ký tự.
 - **Emulated tool-calling**: model không hỗ trợ function calling vẫn dùng được toàn bộ tool — schema render thành text trong system prompt, model trả khối `<tool_call>` JSON, server parse + thực thi + vòng lặp (trần 10 vòng, 5 call/vòng, chống model tự bịa kết quả tool).
 
 ## Tech stack
@@ -269,7 +268,7 @@ app/api/vision   — mô tả ảnh workspace / ảnh MCP thành text bằng mod
                   vision của provider active (BYOK — client gửi headers
                   provider + model vision đã chọn)
 app/api/compact  — nén hội thoại dài thành summary có state tích lũy
-app/api/title    — sinh tiêu đề, chống prompt-injection, heuristic fallback
+app/api/title    — ĐÃ GỠ. Tiêu đề phiên nay sinh phía client (`lib/use-title-generator.ts`)
 app/api/web      — proxy tra cứu web: DuckDuckGo lite→html + đọc trang
                   (SSRF guard từng hop redirect, trần 1.5MB/12s mỗi trang)
 app/api/bridge   — cầu nối desktop: endpoint local-only + token, chuyển tiếp
@@ -328,6 +327,6 @@ Message gốc mang `parentId = '__ROOT__'` (IndexedDB không index được `nul
 
 ## Ghi chú triển khai
 
-- Routes API khai báo tường minh `export const runtime = 'nodejs'` — đã rời Edge trước khi Next 16 deprecate.
-- Rate limit in-memory per-isolate: chỉ là lớp chống spam nhẹ, cần Upstash Redis nếu muốn chính xác toàn cục.
+- Runtime: 5 route LLM khai báo tường minh `export const runtime = 'nodejs'` (`chat`, `compact`, `providers/models`, `server-config`, `vision`). 4 route còn lại (`bridge`, `pdf`, `web`, `chat/subagent-relay`) chỉ khai `dynamic = 'force-dynamic'`.
+- Rate limit: **đã gỡ khỏi toàn bộ route LLM** — chỉ còn ở `/api/bridge` (in-memory per-isolate, lớp chống spam nhẹ, cần Upstash Redis nếu muốn chính xác toàn cục).
 - Origin cho phép: `localhost`, `127.0.0.1`, `[::1]`; thêm domain riêng qua `ALLOWED_ORIGIN_HOSTS`.

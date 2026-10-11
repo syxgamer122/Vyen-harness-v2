@@ -56,8 +56,13 @@ const CAPABILITY_OVERRIDES: ReadonlyMap<string, Partial<ModelCapabilityConfig>> 
   ['gpt-4o', { supportsImages: true, supportsPdf: true, supportsTemperature: true }],
   ['chatgpt-4o-latest', { supportsImages: true, supportsPdf: true }],
   ['gpt-4o-mini', { supportsImages: true, supportsPdf: true }],
-  ['o3', { supportsImages: true, supportsPdf: true }],
-  ['o3-mini', { supportsImages: true, supportsPdf: true }],
+  /* `o3`/`o3-mini` phải khai `supportsTemperature: false` TẠI ĐÂY, không dựa
+     vào regex NO_TEMPERATURE bên dưới: entry trong bảng này `return` sớm nên
+     regex không bao giờ chạy tới. Thiếu khai báo thì model reasoning gửi
+     `temperature` lên gateway và bị 400 (xem lib/model-contracts.ts:
+     'o3-mini' có unsupportedParams: ['temperature', 'top_p']). */
+  ['o3', { supportsImages: true, supportsPdf: true, supportsTemperature: false }],
+  ['o3-mini', { supportsImages: true, supportsPdf: true, supportsTemperature: false }],
   ['o1-mini', { supportsImages: false, supportsPdf: false, supportsTemperature: false }],
 ]);
 

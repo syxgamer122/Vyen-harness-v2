@@ -46,7 +46,7 @@ const HEX_MAP: Record<string, string> = Object.fromEntries(
     /^\s*'?([\w-]+)'?:\s*'(#[0-9a-fA-F]{6})'/gm,
   )].map((m) => [m[1]!, m[2]!.toLowerCase()]),
 );
-expect(Object.keys(HEX_MAP).length, 'không đọc được bảng `hex` trong tailwind.config.ts').toBe(24);
+expect(Object.keys(HEX_MAP).length, 'không đọc được bảng `hex` trong tailwind.config.ts').toBe(25);
 
 /** Nền sâu nhất bên dưới băng: `<body className="… bg-sunken …">`. */
 const BODY_BG = read('app/layout.tsx').match(/<body[^>]*\bbg-([a-z-]+)\b/)?.[1];

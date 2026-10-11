@@ -380,7 +380,7 @@ export function ModelSelector({
           >
             {/* Ô tìm kiếm + số lượng model */}
             <div className="flex flex-none items-center gap-2 border-b border-subtle p-2">
-              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-subtle bg-sunken px-3 py-1.5 transition-colors focus-within:border-accent">
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-sunken px-3 py-1.5 transition-colors focus-within:border-accent">
                 <Search size={12} aria-hidden="true" className="shrink-0 text-tertiary" />
                 <input
                   ref={searchRef}

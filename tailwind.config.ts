@@ -31,23 +31,50 @@ const hex = {
   tertiary: '#6f6f6f',
   disabled: '#a3a3a3',
 
-  /* VIỀN — 3 tầng. `default` đạt 3.03:1 (WCAG 1.4.11 cho ranh giới control). */
-  subtle: '#e5e5e5',
-  default: '#949494',
-  strong: '#525252',
+  /*
+   * VIỀN — 4 tầng: 3 tầng HAIRLINE alpha + MỘT tầng cho ô nhập.
+   *
+   * Ba giá trị hairline KHÔNG phải mực mờ hơn: chúng là kênh RGB xám tính
+   * bằng 255 × (1 − alpha), tức `rgba(0,0,0,a)` phủ lên nền trắng. 240 ≈ alpha
+   * 0.059, 225 ≈ 0.118, 204 = 0.200.
+   *
+   * ĐÁNH ĐỔI ĐÃ BIẾT: từ 1.14 / 1.31 / 1.61:1 trên trắng. KHÔNG tầng hairline
+   * nào đạt 3:1 của WCAG 1.4.11 — kể cả `default`, trước đây là tầng DUY NHẤT
+   * đạt. App vốn đã dùng viền trang trí dưới ngưỡng (`subtle` cũ chỉ 1.26:1),
+   * nay cả ba tầng đều ở dưới — đổi lại viền không còn "bê tông", không còn
+   * nặng hơn chữ nó bao quanh.
+   *
+   * Hệ quả đó là 12 control tương tác rơi xuống 1.31:1, nên bảng này nay có
+   * TẦNG THỨ TƯ: `input` `#949494`, đo 3.03:1 trên trắng — đúng ngưỡng
+   * 1.4.11. Nó KHÔNG phải "viền đậm hơn cho khéo": nó dành riêng cho nơi mà
+   * viền là TÍN HIỆU DUY NHẤT cho biết đây là ô nhập (`.field`, `.field-sm`,
+   * `.checkbox-box` trong globals.css). Lý do không dùng `focus:ring` bù:
+   * vòng focus chỉ hiện khi ô ĐANG được focus, còn 1.4.11 cũng áp cho ô ở
+   * trạng thái nghỉ.
+   */
+  subtle: '#f0f0f0',
+  default: '#e1e1e1',
+  strong: '#cccccc',
+  input: '#949494',
 
-  accent: '#2a7360',
+  /* NHẤN — họ xanh của logo mới (gradient não), thay teal cũ `#2a7360`. */
+  accent: '#0B7A53',
   /*
    * `accent-dim` là vật thể ĐỒ HOẠ (cột biểu đồ, chấm trạng thái), không phải
    * nền chữ — nên nó chịu ngưỡng 3:1 của WCAG 1.4.11 chứ không phải 4.5:1.
-   * Giá trị cũ `#7fb8a6` chỉ đạt 2.26:1 trên trắng và 2.07:1 trên `#f5f5f5`:
-   * dưới ngưỡng, tức đúng loại tín hiệu mà luật đó sinh ra để bảo vệ.
-   * `#519a85` giữ nguyên tông xanh trầm, đo được 3.33:1 trên trắng và 3.05:1
-   * trên `#f5f5f5`. Sửa ở đây thì phải sửa cả `:root` trong globals.css và
-   * bảng màu trong tests/design-system.test.ts — test kiểm cả hai chiều.
+   *
+   * `#519a85` (họ teal cũ) đạt 3.33:1 trên trắng và 3.05:1 trên `#f5f5f5` —
+   * vừa đúng ngưỡng, không dư. `#449879` giữ đúng SẮC ĐỘ xanh của `accent`
+   * (hue 158° so với 159°), bỏ bớt độ bão hòa cho đúng vai trò đồ hoạ, và đo
+   * được 3.49:1 trên trắng, 3.26:1 trên `#f7f7f7`, 3.20:1 trên `#f5f5f5` —
+   * vượt ngưỡng trên CẢ BA nền thay vì sát mép.
+   *
+   * Sửa ở đây thì phải sửa cả `:root` trong globals.css và bảng màu trong
+   * tests/design-system.test.ts — test kiểm cả hai chiều.
    */
-  'accent-dim': '#519a85',
-  'accent-soft': '#f0f4f3',
+  'accent-dim': '#449879',
+  /* NỀN nhấn nhạt — cùng hue, bão hòa thấp; xanh #0B7A53 trên nền này đạt 4.68:1. */
+  'accent-soft': '#e8f2ee',
   'on-fill': '#ffffff',
   success: '#167a4a',
   warning: '#9a6206',
@@ -142,15 +169,18 @@ const config: Config = {
         disabled: hex.disabled,
 
         /*
-         * VIỀN — 3 tầng, mỗi tầng đảm nhiệm đúng MỘT việc. Đây là thứ quyết
+         * VIỀN — 4 tầng, mỗi tầng đảm nhiệm đúng MỘT việc. Đây là thứ quyết
          * định một khối trông như "khung" hay như "control".
          *   subtle  — đường phân cách giữa các dòng TRONG một khối
-         *   default — ranh giới control (input, nút, ô chọn)
+         *   default — ranh giới control (nút, chip, khối bao)
          *   strong  — hover / focus / selected
+         *   input   — ô nhập/checkbox/select: nơi viền là tín hiệu DUY NHẤT
+         *              (3.03:1, đạt WCAG 1.4.11). Xem `.field` trong globals.css.
          */
         subtle: hex.subtle,
         default: hex.default,
         strong: hex.strong,
+        input: hex.input,
 
         /* NHẤN & TRẠNG THÁI — một bảng màu cho toàn ứng dụng. */
         accent: hex.accent,

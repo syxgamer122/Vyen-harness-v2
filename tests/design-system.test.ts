@@ -25,10 +25,32 @@ describe('DESIGN.md — Vyen design-system contract', () => {
     '#f7f7f7', '#fcfcfc', '#ffffff', '#f5f5f5', '#ffffff',
     /* Chữ — 4 tầng, đều đạt WCAG AA trên nền trắng */
     '#18181b', '#575757', '#6f6f6f', '#a3a3a3',
-    /* Viền — 3 tầng; `default` đạt 3.03:1 cho ranh giới control */
-    '#e5e5e5', '#949494', '#525252',
-    /* Nhấn & trạng thái */
-    '#2a7360', '#519a85', '#f0f4f3', '#ffffff', '#167a4a', '#9a6206', '#b3261e', '#0369a1', '#6d4aa8',
+    /*
+     * Viền — 3 tầng HAIRLINE = `rgba(0,0,0,a)` phủ trắng, viết dạng kênh RGB
+     * để Tailwind áp được `/60`: 240≈a .059, 225≈a .118, 204=a .200.
+     * ĐO ĐƯỢC 1.14 / 1.31 / 1.61:1 trên trắng — KHÔNG tầng hairline nào đạt
+     * 3:1 của WCAG 1.4.11. Đây là đánh đổi ĐÃ CHẤP NHẬN, không phải sự cố:
+     * viền trước đây nặng hơn chữ nó bao quanh.
+     */
+    '#f0f0f0', '#e1e1e1', '#cccccc',
+    /*
+     * TẦNG THỨ TƯ — hệ quả trực tiếp của việc cả ba tầng hairline rơi xuống
+     * dưới ngưỡng: 12 control tương tác theo đúng danh sách đó rơi về 1.31:1.
+     *
+     * `input` `#949494` ĐO ĐƯỢC 3.03:1 trên trắng — đạt WCAG 1.4.11. Nó dành
+     * riêng cho nơi viền là TÍN HIỆU DUY NHẤT cho biết đó là ô nhập: recipe
+     * `.field` / `.field-sm` / `.checkbox-box` (`.select-field` kế thừa
+     * `.field`). Không dùng vòng focus để bù được: vòng chỉ hiện khi ô ĐANG
+     * focus, còn 1.4.11 áp cả cho ô ở trạng thái nghỉ.
+     */
+    '#949494',
+    /*
+     * Nhấn & trạng thái. `accent` `#0b7a53` (họ xanh logo mới) đo 5.35:1 trên
+     * trắng, 5.00:1 trên `#f7f7f7`. `accent-dim` `#449879` là VẬT THỂ ĐỒ HOẠ
+     * (cột biểu đồ, chấm trạng thái) nên chịu ngưỡng 3:1 chứ không phải 4.5:1 —
+     * đo 3.49:1 trên trắng, 3.26:1 trên `#f7f7f7`, 3.20:1 trên `#f5f5f5`.
+     */
+    '#0b7a53', '#449879', '#e8f2ee', '#ffffff', '#167a4a', '#9a6206', '#b3261e', '#0369a1', '#6d4aa8',
     /* Diff */
     '#1f7a3d', '#b3261e', '#575757',
   ]);
@@ -97,6 +119,13 @@ describe('DESIGN.md — Vyen design-system contract', () => {
     '../app/page.tsx',
     '../app/globals.css',
     '../app/layout.tsx',
+    /* Thư viện primitive dùng chung — đăng ký NGAY từ đầu để đợt refactor
+       sau chỉ việc thay call site, không phải nhớ canh token. */
+    '../components/ui/button.tsx',
+    '../components/ui/disclosure-row.tsx',
+    '../components/ui/icon-button.tsx',
+    '../components/ui/pill.tsx',
+    '../components/ui/text-shimmer.tsx',
   ];
 
   /** Họ màu Tailwind mặc định — dùng là ra ngoài bảng token. */
@@ -464,9 +493,15 @@ describe('DESIGN.md — Vyen design-system contract', () => {
      * cả `surface`/`overlay`/`on-fill`, `#18181b` cho cả `primary`/`strong`,
      * `#575757` cho cả `secondary`/`diff-ctx` — vì trên giấy trắng, "nền" và
      * "chữ trên nền tô đậm" là hai câu hỏi khác nhau về CÙNG một màu.
-     * 24 key → 20 giá trị phân biệt.
+     * 25 key → 21 giá trị phân biệt.
+     *
+     * 24 → 25 key là tầng `input` `#949494` (xem khối viền ở PALETTE_TOKENS);
+     * nó là màu MỚI chứ không phải màu tái sử dụng, nên số giá trị phân biệt
+     * lên đúng một: 20 → 21. Nếu nó từng đè lên một giá trị sẵn có thì con số
+     * này KHÔNG đổi — đó là cách phát hiện token "sinh ra nhưng không vẽ ra
+     * gì mới".
      */
-    expect(configHexes.size, 'không đọc được mảng `hex` trong tailwind.config.ts').toBe(20);
+    expect(configHexes.size, 'không đọc được mảng `hex` trong tailwind.config.ts').toBe(21);
 
     /* Mỗi hex trong PALETTE_TOKENS phải tồn tại thật trong config. */
     for (const h of PALETTE_TOKENS) {

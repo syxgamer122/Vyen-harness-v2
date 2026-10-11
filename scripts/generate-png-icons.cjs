@@ -1,3 +1,19 @@
+/**
+ * Sinh lại bộ icon PNG + favicon.ico từ SVG dựng ngay trong file này.
+ *
+ * `sharp` ở đây là dependency KHÔNG khai báo: nó resolve được nhờ được
+ * `next` khai ở optionalDependencies và bị hoist lên node_modules đời
+ * (lockfile: `node_modules/sharp` 0.35.3, `optional: true`). Nên
+ * `npm ci --omit=optional` sẽ làm script chết. Cố ý không thêm sharp vào
+ * package.json — đây là công cụ chạy tay một lần, không nằm trong build,
+ * không nằm trong CI, không ai gọi nó từ npm script nào. Icon đã sinh xong
+ * được commit vào public/, nên đổi logo thì chạy script này một lần rồi
+ * commit kết quả.
+ *
+ * Chạy: `node scripts/generate-png-icons.cjs` (từ gốc repo).
+ * Nếu vừa `npm ci --omit=optional`, cài tạm sharp trước:
+ * `npm i sharp --no-save`.
+ */
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');

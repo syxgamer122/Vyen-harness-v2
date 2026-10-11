@@ -54,7 +54,7 @@ Never silence an error to make it go away.
 
 Run the tests and read the output yourself.
 
-`vitest --changed` silently runs the whole suite here. Use `--related <files>` for the fast loop — that is the 228s → 20s difference.
+`vitest --changed` silently runs the whole suite here. Use the `related` subcommand for the fast loop — that is the 228s → 20s difference. Note: `--related <files>` is NOT a valid flag in vitest 4 and fails with `CACError: Unknown option`.
 
 UI: open it and try to break it: empty input, double submit, refresh.
 
@@ -104,7 +104,7 @@ Never downgrade code to satisfy a stale type. Upgrade the dependency.
 
 After code changes: `npm run typecheck`, then `npm run lint`. Full output, fix every error. Never invoke raw `tsc`.
 
-`npm test` is the whole suite (222 files). Scope it: `npx vitest run tests/<file>.test.ts`, or `--related <files>`.
+`npm test` is the whole suite (225 files). Scope it: `npx vitest run tests/<file>.test.ts`, or `npx vitest related <files> --run`.
 
 Test the real implementation. No mocks of internal modules; assert on behavior and output.
 

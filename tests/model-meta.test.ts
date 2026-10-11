@@ -34,6 +34,10 @@ const providerOptions: ModelOption[] = (
   [
     { id: 'gpt-4o', name: 'GPT-4o', contextLength: 128_000 },
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini', contextLength: 128_000 },
+    { id: 'chatgpt-4o-latest', name: 'ChatGPT-4o Latest' },
+    { id: 'o1', name: 'o1' },
+    { id: 'o1-mini', name: 'o1-mini' },
+    { id: 'o3-mini', name: 'o3-mini' },
     { id: 'claude-opus-5', name: 'Claude Opus 5', contextLength: 200_000 },
     { id: 'gemini-3-1-pro', name: 'Gemini 3.1 Pro' },
     { id: 'ten-mo-rac-khong-ai', name: 'Tên mơ Rắc' },
@@ -263,12 +267,22 @@ describe('buildPickerSections - không còn section Đề xuất (BYOK 100%)', (
   });
 
   it('không có gì: không sinh section nào', () => {
-    const sections = buildPickerSections([deriveModelOption({ id: 'mystery-model' })], {
+    const sections = buildPickerSections([], {
       providerId: 'p1',
     });
     expect(sections.some((s) => s.key === 'recent')).toBe(false);
     expect(sections.some((s) => s.key === 'favorite')).toBe(false);
     expect(sections).toEqual([]);
+  });
+
+  /* Model lạ vẫn vào nhóm "Khác" — danh sách model là của provider, app không
+     lọc theo tên model. Không có gì nghĩa là DANH SÁCH rỗng. */
+  it('model không thuộc hãng nào vẫn hiện ở nhóm Khác', () => {
+    const sections = buildPickerSections([deriveModelOption({ id: 'mystery-model' })], {
+      providerId: 'p1',
+    });
+    expect(sections.map((s) => s.key)).toEqual(['other']);
+    expect(sections[0]?.items.map((m) => m.id)).toEqual(['mystery-model']);
   });
 });
 
@@ -343,13 +357,18 @@ describe('buildPickerSections - nhóm hãng / media / khác', () => {
     { id: 'totally-unknown-lab', label: 'Unknown Lab 7B' },
   ];
 
-  it('media thắng hãng: gpt-image-2 vào Tạo ảnh, không vào OpenAI · GPT', () => {
+  /* Nhóm media đã GỠ (app không tạo ảnh/video). buildPickerSections chỉ gom
+     theo HÃNG — model media do `components/model-selector.tsx` lọc khỏi
+     danh sách trước khi gọi hàm này, xem tests/model-picker-retirement.test.ts.
+     Không có nhóm image/video: chúng rơi vào "Khác" nếu lọc ở tầng trên. */
+  it('không còn nhóm Tạo ảnh / Tạo video (đã gỡ) — media rơi vào Khác', () => {
     const sections = buildPickerSections(mixed, { providerId: 'srv' });
     const keys = sections.filter((s) => !s.quick).map((s) => s.key);
-    expect(keys).toEqual(['gpt', 'claude', 'image', 'video', 'other']);
+    expect(keys).toEqual(['gpt', 'claude', 'other']);
     expect(sections.find((s) => s.key === 'gpt')?.items.map((m) => m.id)).toEqual(['gpt-4o']);
-    expect(sections.find((s) => s.key === 'image')?.items.map((m) => m.id)).toEqual(['my-image-model']);
     expect(sections.find((s) => s.key === 'other')?.items.map((m) => m.id)).toEqual([
+      'my-image-model',
+      'my-video-model',
       'totally-unknown-lab',
     ]);
   });
@@ -426,7 +445,7 @@ describe('buildPickerSections - id trùng lặp (regression)', () => {
     expect(sections.find((s) => s.key === 'glm')?.items).toHaveLength(1);
   });
 
-  it('id media đụng id thường: một hàng duy nhất, vào nhóm media (bản đầu thắng)', () => {
+  it('id media đụng id thường: một hàng duy nhất, bản đầu thắng', () => {
     const sections = buildPickerSections(
       [
         { id: 'x-image', label: 'X Image', media: 'image', hint: 'Tạo ảnh từ mô tả' },
@@ -438,8 +457,10 @@ describe('buildPickerSections - id trùng lặp (regression)', () => {
       .flatMap((s) => s.items.map((i) => i.id))
       .filter((id) => id === 'x-image');
     expect(occurrences).toHaveLength(1);
-    expect(sections.find((s) => s.key === 'image')?.items.map((m) => m.id)).toEqual(['x-image']);
-    expect(sections.some((s) => s.key === 'other')).toBe(false);
+    /* Bản đầu (media) thắng: giữ đúng cờ media, và vì không còn nhóm media
+       nên nó rơi vào "Khác" — chính là điều kiện bảo đảm không sinh hai hàng
+       cho cùng một id. */
+    expect(sections.find((s) => s.key === 'other')?.items.map((m) => m.media)).toEqual(['image']);
   });
 });
 

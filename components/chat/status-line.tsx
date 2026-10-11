@@ -159,7 +159,19 @@ export const StatusLine = memo(function StatusLine({
        * bề rộng — dưới `md` nó rút còn đúng con số, không biến mất.
        */}
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-        {/* Mode + trạng thái chạy: từ quyết định có thể đổi bằng một chạm. */}
+        {/*
+         * Mode là công tắc THẬT (đổi quyền ghi của agent), nên nó phải đọc ra
+         * là control: bo góc control + viền 1px + nền riêng, nhưng nhỏ hơn hẳn
+         * nút chính. Trước đây là chữ in hoa không nền không viền — mắt quét
+         * không có gì để bắt vào, nên nó đọc như nhãn chứ không phải như nút.
+         *
+         * Viền `warning` đặc (5.09:1) chứ không phải `/40`: đo được `/40` chỉ
+         * 1.76:1 trên nền trắng — coi như không có viền, tức mất đúng thứ định
+         * nghĩa "đây là control" mà vòng này thêm vào. Nền `/10` giữ nhẹ.
+         *
+         * §15.3 điểm 13 cấm phân cấp bằng viền/shadow khắp nơi; ở đây viền là
+         * DUY NHẤT trên thanh trạng thái, dành cho đúng một control.
+         */}
         {onToggleAgentMode && (
           <button
             type="button"
@@ -173,10 +185,10 @@ export const StatusLine = memo(function StatusLine({
                 ? 'PLAN: agent chỉ đọc và hỏi, bấm để cho phép ghi'
                 : 'ACT: agent đọc + ghi file, chạy lệnh, bấm để về PLAN'
             }
-            className={`flex-none rounded-full px-2 py-0.5 uppercase tracking-[0.08em] text-micro transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`flex-none rounded-md border px-2 py-1 uppercase tracking-[0.08em] text-micro transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 ${
               agentMode === 'plan'
-                ? 'text-warning'
-                : 'text-tertiary hover:text-primary'
+                ? 'border-warning bg-warning/10 text-status-warning'
+                : 'border-default bg-surface text-secondary hover:border-strong hover:text-primary'
             }`}
           >
             {agentMode === 'plan' ? 'plan' : 'act'}
@@ -232,7 +244,11 @@ export const StatusLine = memo(function StatusLine({
          * Ngữ cảnh: MỘT thanh mảnh tỉ lệ + con số. Mười vạch cũ nặng quá cho
          * một hàng thanh trạng thái và tốn thêm chỗ ngang cạnh cụm phải; đổi lại
          * độ chính xác giảm từ 10 bậc xuống liên tục — chấp nhận được, vì số
-         * phần trăm vẫn in ra ngay cạnh. Dưới `lg` chỉ còn phần trăm.
+         * vẫn in ra ngay cạnh.
+         *
+         * Dưới `lg` chỉ ẨN THANH, không rút còn phần trăm: `12%` không nói
+         * được 12% của bao nhiêu, còn `7.7k / 200k` thì đọc được ở mọi bề rộng
+         * và vẫn là con số người dùng quyết định (mốc nén) dựa trên đó.
          */}
         {meter && (
           <>
@@ -254,11 +270,10 @@ export const StatusLine = memo(function StatusLine({
                   style={{ width: `${Math.round(meter.fillRatio * 100)}%` }}
                 />
               </div>
-              <span className={`flex-none tabular-nums text-ui ${TONE_TEXT[meter.tone]}`}>
-                <span className="sm:hidden">{meter.percent}%</span>
-                <span className="hidden sm:inline">
-                  {fmt(ctxUsed!)}/{fmt(meter.safeMax)}
-                </span>
+              <span
+                className={`flex-none whitespace-nowrap tabular-nums text-ui ${TONE_TEXT[meter.tone]}`}
+              >
+                {fmt(ctxUsed!)} / {fmt(meter.safeMax)}
               </span>
             </div>
           </>

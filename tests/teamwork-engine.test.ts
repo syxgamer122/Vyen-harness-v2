@@ -305,6 +305,19 @@ describe('TeamworkEngine Test Suite', () => {
       let maxActiveWorkers = 0;
       const executionTimes: Record<string, { start: number; end: number }> = {};
 
+      /* Rào (barrier) thay cho setTimeout: worker đầu chỉ thoát khi worker thứ
+         hai đã vào, nên "2 worker cùng chạy" là điều kiện chờ chứ không phải
+         đo thời gian. Trước đây đo setTimeout(40) — worker thứ hai còn đang
+         làm I/O ledger nên cửa sổ 40ms có thể đóng trước khi nó tới, đỏ theo
+         tải máy (full-suite) chứ không phải do engine. Chặn trên bằng timeout
+         để engine chạy TUẦN TỰ vẫn kết thúc test (và vẫn đỏ đúng: khi đó
+         maxActiveWorkers vẫn là 1). */
+      let arrivals = 0;
+      let openBarrier: () => void = () => {};
+      const bothInside = new Promise<void>((resolve) => {
+        openBarrier = resolve;
+      });
+
       const engine = new TeamworkEngine({
         workspaceRoot: tmpDir,
         concurrencyCap: 2,
@@ -314,10 +327,14 @@ describe('TeamworkEngine Test Suite', () => {
           if (activeWorkersCount > maxActiveWorkers) {
             maxActiveWorkers = activeWorkersCount;
           }
+          arrivals++;
+          if (arrivals === 2) openBarrier();
           const start = Date.now();
-          await new Promise((r) => setTimeout(r, 40));
-          const end = Date.now();
-          executionTimes[milestone.id] = { start, end };
+          await Promise.race([
+            bothInside,
+            new Promise((r) => setTimeout(r, 2_000)),
+          ]);
+          executionTimes[milestone.id] = { start, end: Date.now() };
           activeWorkersCount--;
           return { filesTouched: milestone.ownedFiles };
         },

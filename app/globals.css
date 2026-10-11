@@ -47,17 +47,34 @@
     --text-disabled: 163 163 163; /* control bị vô hiệu — WCAG miễn trừ */
 
     /*
-     * VIỀN — 3 tầng, mỗi tầng đảm nhiệm đúng MỘT việc. Đây là thứ quyết định
-     * một khối trông như "khung" hay như "control".
+     * VIỀN — 4 tầng: 3 tầng HAIRLINE + 1 tầng riêng cho ô nhập.
+     *
+     * Ba tầng hairline là `rgba(0,0,0,a)` phủ lên giấy trắng, viết dạng kênh
+     * RGB để Tailwind vẫn áp được modifier `/60`: giá trị = 255 × (1 − a).
+     *   240 ≈ a 0.059 · 225 ≈ a 0.118 · 204 = a 0.200
+     *
+     * ĐỔI LẠI: từ 1.26/3.03/7.81:1 xuống còn 1.14/1.31/1.61:1 trên trắng.
+     * KHÔNG tầng hairline nào còn đạt 3:1 của WCAG 1.4.11 — kể cả `default`,
+     * trước đây là tầng duy nhất đạt. App vốn đã dùng viền trang trí dưới
+     * ngưỡng (`subtle` cũ chỉ 1.26:1); nay đánh đổi lấy viền mảnh thay vì
+     * bê tông.
+     *
+     * TẦNG THỨ TƯ (`--border-input`) là hệ quả trực tiếp của đổi lại đó: 12
+     * control tương tác rơi xuống 1.31:1. Nó dành riêng cho nơi viền là TÍN
+     * HIỆU DUY NHẤT cho biết đây là ô nhập — `.field`, `.field-sm`,
+     * `.checkbox-box` (`.select-field` kế thừa `.field`). Không dùng
+     * `focus:ring` để bù vì vòng focus chỉ hiện khi ô ĐANG focus, còn 1.4.11
+     * áp cả cho ô ở trạng thái nghỉ.
      */
-    --border-subtle: 229 229 229; /* đường phân cách giữa các dòng TRONG một khối */
-    --border-default: 148 148 148; /* ranh giới control — 3.03:1 (WCAG 1.4.11) */
-    --border-strong: 82 82 82; /* hover / focus / selected — 7.81:1 */
+    --border-subtle: 240 240 240; /* đường phân cách giữa các dòng TRONG một khối — 1.14:1, trang trí */
+    --border-default: 225 225 225; /* ranh giới control (nút, chip) — 1.31:1, KHÔNG đạt 1.4.11 */
+    --border-strong: 204 204 204; /* hover / focus / selected — 1.61:1 */
+    --border-input: 148 148 148; /* ô nhập / checkbox / select — 3.03:1 trên trắng, ĐẠT WCAG 1.4.11 */
 
     /* NHẤN & TRẠNG THÁI — một bảng màu duy nhất cho toàn ứng dụng. */
-    --accent: 42 115 96; /* nhấn chủ đạo: link, con trỏ, viền focus — 5.6:1, đạt AA */
-    --accent-dim: 81 154 133; /* nhấn bị tắt, cột biểu đồ — 3.33:1 trên trắng, 3.05:1 trên #f5f5f5 (đạt 3:1 của WCAG 1.4.11) */
-    --accent-soft: 240 244 243; /* NỀN nhấn nhạt — tag active, bubble, hover mềm */
+    --accent: 11 122 83; /* nhấn chủ đạo: link, con trỏ, viền focus — 5.35:1 trên trắng, 5.00:1 trên #f7f7f7, đạt AA */
+    --accent-dim: 68 152 121; /* vật thể ĐỒ HOẠ (cột biểu đồ, chấm trạng thái) — 3.49:1 trên trắng, 3.26:1 trên #f7f7f7, 3.20:1 trên #f5f5f5: vượt ngưỡng 3:1 của WCAG 1.4.11 trên cả ba nền */
+    --accent-soft: 232 242 238; /* NỀN nhấn nhạt — tag active, bubble, hover mềm; chữ --accent trên nền này 4.68:1 */
     /*
      * CHỮ TRÊN NỀN BÃO HÒA. Không phải "chữ thứ 5 theo độ sáng" — nó là
      * câu trả lời cho một câu hỏi: "chữ màu gì để đọc được trên nút tô đậm?".
@@ -89,9 +106,9 @@
     --bg-canvas: 252 252 252; /* = --bg-base — vai trò "vùng làm việc" */
     --panel-bg: 255 255 255; /* = --bg-surface — vai trò "khối chat/panel phụ" */
     --panel-soft: 245 245 245; /* = --bg-raised — vai trò "khối hover, code" */
-    --border-hover: 82 82 82; /* = --border-strong */
+    --border-hover: 204 204 204; /* = --border-strong */
     --text-muted: 87 87 87; /* = --text-secondary */
-    --accent-steel: 42 115 96; /* = --accent */
+    --accent-steel: 11 122 83; /* = --accent */
     --status-success: 22 122 74; /* = --success */
     --status-warning: 154 98 6; /* = --warning */
     --status-error: 179 38 30; /* = --danger */
@@ -100,7 +117,7 @@
     --surface-bubble: 255 255 255; /* = --bg-surface */
     --surface-muted: 245 245 245; /* = --bg-raised */
     --surface-code: 245 245 245; /* = --bg-raised */
-    --brand: 42 115 96; /* = --accent */
+    --brand: 11 122 83; /* = --accent */
     --brand-accent: 179 38 30; /* = --danger — dùng trực tiếp bởi vyen-logo.tsx */
     --foreground: 24 24 27; /* = --text-primary */
     --muted-foreground: 87 87 87; /* = --text-secondary */
@@ -441,6 +458,12 @@ html[data-animations='off'] *::after {
    * Ô nhập — `.well`: bóng nằm trong viền nên mắt đọc ngay đây là chỗ "khoét
    * vào" để gõ, khác hẳn khối nổi xung quanh.
    *
+   * VIỀN `input` (3.03:1, đạt WCAG 1.4.11) chứ không phải `default`
+   * (1.31:1): ở ô nhập, viền là tín hiệu DUY NHẤT cho biết đây là chỗ gõ —
+   * nhãn `.field-label` có thể nằm xa, placeholder thì biến mất khi đã có chữ.
+   * Không dùng vòng focus để bù: vòng chỉ hiện khi ô ĐANG focus, còn 1.4.11
+   * áp cả cho ô ở trạng thái nghỉ.
+   *
    * KHÔNG `outline-none` ở đây. Class đó khai `outline: 2px solid
    * transparent` trong layer `components`, đè lên `:focus-visible` ở layer
    * `base` (cùng specificity, layer sau thắng) — tức là mọi ô nhập trong app
@@ -452,12 +475,12 @@ html[data-animations='off'] *::after {
    * lại xoá mất bóng `.well` đúng lúc người dùng đang gõ.
    */
   .field {
-    @apply well w-full rounded-lg border border-default bg-surface px-3 py-2
+    @apply well w-full rounded-lg border border-input bg-surface px-3 py-2
       text-sm font-sans text-primary transition-colors duration-150
       placeholder:text-tertiary focus:border-accent;
   }
   .field-sm {
-    @apply well w-full rounded-lg border border-default bg-surface px-2.5 py-1.5
+    @apply well w-full rounded-lg border border-input bg-surface px-2.5 py-1.5
       text-ui font-sans text-primary transition-colors duration-150
       placeholder:text-tertiary focus:border-accent;
   }
@@ -480,8 +503,14 @@ html[data-animations='off'] *::after {
    *
    * BẬC DÙNG: KHÔNG sinh bóng. Hệ này chỉ có bốn nguồn sinh bóng
    * (`.lift-sm` / `.lift-md` / `.lift-lg` / `.well`); ô tick không thuộc
-   * nhóm nào, tự dán bóng sẽ thành nguồn thứ năm. Viền `default` (3.03:1)
-   * đã đủ cho WCAG 1.4.11 về ranh giới control.
+   * nhóm nào, tự dán bóng sẽ thành nguồn thứ năm.
+   *
+   * VIỀN `input` (3.03:1) chứ không phải `default`: ô tick 16px là một vùng
+   * nhỏ trên nền trắng và CHƯA bật thì không có gì bên trong — viền là tín
+   * hiệu duy nhất cho biết đó là control, đúng trường hợp 1.4.11 nói tới.
+   * (`default` 1.31:1 là tầng dành cho nút/chip, nơi còn nền khác và chữ bên
+   * trong.) Các ô checkbox còn lại trong Settings vẫn dùng `accent-accent`
+   * — đó là MÀU NỀN của control, không phải viền, nên không thuộc token này.
    *
    * Bo góc `sm` (4px) CHỨ KHÔNG phải `DEFAULT` (6px): bảng vai trò gán
    * `sm` cho "chip nhỏ, badge, ô inline" — đúng ô tick 16px này. Bán kính
@@ -490,14 +519,14 @@ html[data-animations='off'] *::after {
    */
   .checkbox-box {
     @apply h-4 w-4 flex-shrink-0 cursor-pointer appearance-none rounded-sm
-      border border-default bg-surface bg-contain bg-center bg-no-repeat
+      border border-input bg-surface bg-contain bg-center bg-no-repeat
       transition-colors duration-150;
   }
   .checkbox-box:checked {
     @apply border-accent bg-accent;
     /*
-     * Tick mực trắng `#ffffff` = token `--on-fill`: đo được 5.6:1 trên
-     * nền accent `#2a7360`, tức vẫn đạt AA cho một nét mảnh 2.5px.
+     * Tick mực trắng `#ffffff` = token `--on-fill`: đo được 5.35:1 trên
+     * nền accent `#0B7A53`, tức vẫn đạt AA cho một nét mảnh 2.5px.
      * `viewBox 16` khớp cạnh 16px của ô nên không phải scale tay.
      */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3.25 8.5l3 3 6.5-6.5'/%3E%3C/svg%3E");
@@ -523,7 +552,7 @@ html[data-animations='off'] *::after {
    * tranh với chữ của option đang chọn.
    *
    * BẬC DÙNG: kế thừa TRỌN của `.field` — `well` + `rounded-lg` +
-   * `border-default` + `focus:border-accent`, cùng cao, cùng bo góc, cùng
+   * `border-input` + `focus:border-accent`, cùng cao, cùng bo góc, cùng
    * kiểu chữ. Không thêm bóng, không thêm viền thứ hai.
    *
    * `pr-9` (36px) chừa chỗ cho mũi tên; nó đứng SAU `px-3` của `.field`

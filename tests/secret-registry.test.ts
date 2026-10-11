@@ -310,9 +310,21 @@ describe('chi phí che phải TUYẾN TÍNH trên kết quả tool dài (chốt 
 
   for (const [name, input] of Object.entries(PATHOLOGICAL)) {
     it(`xong trong ngân sách: ${name}`, () => {
-      const started = performance.now();
-      redactSecretText(input);
-      expect(performance.now() - started).toBeLessThan(BUDGET_MS);
+      /* Đo N lượt rồi lấy MIN, không lấy một lượt đơn: full-suite chạy song
+         song nên một lượt có thể bị scheduler/preemption phồng lên (đo thực tế
+         507–639ms trong khi cùng payload chạy riêng ~280–460ms). MIN phản ánh
+         chi phí thật của thuật toán nên vẫn bắt được hồi quy — bản quantifier
+         TRẦN mất >5s, tức vượt ngân sách cả 10 lần ở mọi lượt đo.
+         Cùng cách đo với tests/redteam-picker.test.ts. */
+      const timeOnce = (): number => {
+        const started = performance.now();
+        redactSecretText(input);
+        return performance.now() - started;
+      };
+      timeOnce(); // Warm-up: JIT ổn định trước khi đo.
+      let best = Infinity;
+      for (let round = 0; round < 3; round++) best = Math.min(best, timeOnce());
+      expect(best).toBeLessThan(BUDGET_MS);
     });
   }
 

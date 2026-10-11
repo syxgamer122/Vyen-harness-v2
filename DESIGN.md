@@ -82,8 +82,10 @@ Bốn hệ quả cụ thể, mỗi cái đều kiểm được:
 1. **Chiều sâu = bóng mềm, đúng 4 nguồn.** `.lift-sm` / `.lift-md` / `.lift-lg` /
    `.well` là toàn bộ cơ chế nổi/chìm và là nguồn DUY NHẤT được phép khai báo
    `box-shadow`. Xem §5.
-2. **Viền mang đúng MỘT vai trò, và luôn mảnh.** Ba bậc `subtle` / `default` /
-   `strong`. Không có viền 2px trong hệ này. Xem §2.3.
+2. **Viền mang đúng MỘT vai trò, và luôn mảnh.** Bốn bậc `subtle` / `default` /
+   `strong` / `input`. Chỉ bậc `input` phải đạt 3:1 của WCAG 1.4.11 — vì chỉ ở
+   ô nhập, viền mới là tín hiệu nhận diện duy nhất. Không có viền 2px trong hệ này.
+   Xem §2.3.
 3. **Bo góc đều là mặc định.** Thang px `4 → 6 → 8 → 10 → 12 → 16 → 20`, một
    bán kính cho cả bốn góc. Dạng bất đối xứng (`ink`/`wobble`) đã bị gỡ. Xem §4.1.
 4. **Chiều sâu đến từ ánh sáng, không từ nét vẽ.** Không doodle, không đuôi bong
@@ -130,32 +132,66 @@ dùng nó cho nội dung.
 không còn đạt. `bg-surface/60` hay `border-danger/40` vẫn hợp lệ vì nền/viền
 không mang thông tin chữ.
 
-### 2.3 Viền — 3 tầng, mỗi tầng một việc
+### 2.3 Viền — 4 tầng, mỗi tầng một việc
 
-| Token | HEX | Tương phản | Dùng cho |
+Ba tầng đầu là **hairline**: giá trị RGB xám tính bằng `255 × (1 − alpha)`, tức
+`rgba(0,0,0,a)` phủ lên giấy trắng — 240 ≈ alpha 0.059, 225 ≈ 0.118, 204 = 0.200.
+Tầng thứ tư thì không phải hairline.
+
+| Token | HEX | Tương phản trên `#fff` | Dùng cho |
 |---|---|---|---|
-| `subtle` | `#e5e5e5` | 1.26:1 | đường phân cách **giữa các dòng trong một khối** |
-| `default` | `#949494` | **3.03:1** trên nền trắng, **2.78:1** trên `#f5f5f5` | ranh giới **control** — input, nút, ô chọn |
-| `strong` | `#525252` | 7.8:1 | hover / focus / selected |
+| `subtle` | `#f0f0f0` | 1.14:1 | đường phân cách **giữa các dòng trong một khối** — trang trí |
+| `default` | `#e1e1e1` | 1.31:1 | ranh giới **control** — nút, chip, khối bao |
+| `strong` | `#cccccc` | 1.61:1 | hover / focus / selected |
+| `input` | `#949494` | **3.03:1** | ô nhập / checkbox / select — **tầng duy nhất đạt WCAG 1.4.11** |
 
-`default` đạt 3:1 là yêu cầu của WCAG 1.4.11 cho ranh giới control. Đây là lý do
- nó không xuống `#d4d4d4` cho "nhẹ hơn": viền input nhạt hơn 3:1 là **không nhìn
-thấy**, mà ô nhập không nhìn thấy thì không phải ô nhập.
+**ĐÁNH ĐỔI ĐÃ CHẤP NHẬN — không phải sự cố.** Trước đợt sửa viền, `default` `#949494`
+là tầng **duy nhất** trong ba tầng đạt 3:1 (3.03:1 trên trắng); `subtle` cũ chỉ
+1.26:1 và đã ở dưới ngưỡng từ trước. Việc cả ba tầng hạ xuống hairline đổi lấy
+cho viền **mảnh** thay vì bê tông — trước đây viền nặng hơn cả chữ nó bao quanh.
+Hệ quả trực tiếp: `default` rơi từ 3.03:1 xuống **1.31:1**, tức 12 control tương
+tác theo đúng danh sách đó rơi xuống dưới ngưỡng. DeepSeek Harness dùng **cùng
+thang hairline** này và cũng không đạt 1.4.11 ở bất kỳ tầng nào — đây là một sự
+đồng thuận có chủ đích, không phải sót sót. Cách bù là tầng thứ tư, không phải
+đưa `default` trở lại.
+
+Tầng thứ tư `input` `#949494` **không phải "viền đậm hơn cho khéo"**. Nó dành riêng
+cho nơi mà viền là **TÍN HIỆU DUY NHẤT** cho biết đây là ô nhập: recipe `.field`,
+`.field-sm`, `.checkbox-box` (`.select-field` kế thừa trọn `.field`) trong
+`globals.css`, cộng hai call site viết tay — ô tìm kiếm model
+(`components/model-selector.tsx:383`) và ô sửa tên cuộc trò chuyện nội tuyến
+(`components/sidebar.tsx:226`). Không dùng `focus:ring` để bù: vòng focus chỉ hiện
+khi ô **đang** được focus, còn 1.4.11 áp cả cho ô ở trạng thái nghỉ.
+
+**Quy tắc phạm vi:** dùng `input` **chỉ** khi viền là tín hiệu nhận diện duy nhất
+của control. Cố ý **để nguyên hairline** ở:
+
+| Nơi | Vì sao thoát 1.4.11 |
+|---|---|
+| Ô tìm kiếm sidebar (`sidebar.tsx:513`) | Có icon kính lúp + placeholder, và vùng bấm nằm trong một hàng list đã có ranh giới riêng — **điểm bàn xem còn đáng cân** |
+| Vỏ composer (`composer.tsx:1200`) | Có nền `surface` + `lift-md` + bo góc `2xl`; viền chỉ là lớp ngoài cùng của một khối đã tự đứng |
+| Nút, chip, vỏ dialog, khung bao (`shell-confirm`, `branch-switcher`, `settings-dialog:190`, …) | Có nền khác nền trang **và** có chữ bên trong — tín hiệu nhận diện là chữ, không phải viền |
+
+Hai dòng cuối là **lập luận có thể bàn cãi**: chúng chạm đúng ranh giới mà
+WCAG đặt ra. Chúng được giữ vì hình khối đã có ít nhất hai tín hiệu khác, nhưng nếu
+ai đo bằng mắt thấy ô tìm kiếm sidebar khó nhận ra, thì **ô đó là ứng viên đúng
+nhất** để nâng lên `input`.
 
 **3:1 chỉ đúng trên nền trắng, và khác biệt nền KHÔNG thay thế được viền.**
-`default` trên `#f5f5f5` là 2.78:1, trên `#f7f7f7` là 2.83:1 — dưới ngưỡng. Mà
+`input` trên `#f7f7f7` là 2.83:1, trên `#f5f5f5` là 2.78:1 — dưới ngưỡng. Mà
 nền trên nền thì gần như bằng nhau: `#f5f5f5` so với trắng là **1.09:1**, so với
-`#f7f7f7` là **1.02:1**. Nên câu "control trên nền xám dùng `subtle` và khác biệt
+`#f7f7f7` là **1.018:1**. Nên câu "control trên nền xám dùng `subtle` và khác biệt
 nền bù cho viền" là **sai** — nó vi phạm chính WCAG 1.4.11 mà luật đó sinh ra.
+Recipe `.field` / `.field-sm` vì thế phải nằm trên nền `surface`, không phải
+`raised`.
 
 Luật đúng, theo đúng câu chữ của 1.4.11 (tín hiệu **cần thiết** để nhận diện
 control hoặc trạng thái phải đạt 3:1):
 
 - **Control mà ranh giới là tín hiệu nhận diện duy nhất** — input, select, checkbox,
-  radio, switch — phải nằm trên nền trắng (`surface` / `overlay`) với `default`,
-  hoặc dùng `strong`. Recipe `.field` / `.field-sm` đã đúng cả hai vế.
+  radio, switch — dùng `input`, trên nền trắng (`surface` / `overlay`).
 - **Control được nhận diện bằng nhãn** — nút, chip, phân đoạn, trigger có chữ — được
-  dùng `subtle` trên nền xám, vì ở đó tín hiệu nhận diện là chữ chứ không phải viền.
+  dùng `default` trên nền xám, vì ở đó tín hiệu nhận diện là chữ chứ không phải viền.
 - `subtle` không bao giờ được dùng làm ranh giới của một input. Nó là đường phân
   cách **trong** một khối.
 
@@ -169,20 +205,24 @@ bộ recipe trong `globals.css` cùng 7 call site trong component.
 
 | Token | HEX | Dùng cho |
 |---|---|---|
-| `accent` | `#2a7360` | nhấn chủ đạo: link, con trỏ, viền focus — 5.6:1 |
-| `accent-dim` | `#519a85` | nhấn bị tắt, cột biểu đồ, chấm trạng thái — **3.33:1** trên trắng, **3.05:1** trên `#f5f5f5`: đạt ngưỡng 3:1 của WCAG 1.4.11 cho vật thể đồ hoạ. Giá trị cũ `#7fb8a6` (2.26:1 / 2.07:1) đã bị thay |
-| `accent-soft` | `#f0f4f3` | **nền** nhấn nhạt — tag active, bubble người dùng |
+| `accent` | `#0B7A53` | nhấn chủ đạo: link, con trỏ, viền focus — **5.35:1** trên trắng, **5.00:1** trên `#f7f7f7`, **4.91:1** trên `#f5f5f5`: đạt AA trên cả ba nền |
+| `accent-dim` | `#449879` | vật thể **đồ hoạ**: cột biểu đồ, chấm trạng thái — **3.49:1** trên trắng, **3.26:1** trên `#f7f7f7`, **3.20:1** trên `#f5f5f5`: vượt ngưỡng 3:1 của WCAG 1.4.11 trên **cả ba** nền. Họ teal cũ `#519a85` (3.33:1 / 3.05:1) chỉ vừa đúng ngưỡng trên một nền |
+| `accent-soft` | `#e8f2ee` | **nền** nhấn nhạt — tag active, bubble người dùng |
 | `on-fill` | `#ffffff` | chữ trên nền tô đậm |
 | `success` / `warning` / `danger` / `info` | `#167a4a` / `#9a6206` / `#b3261e` / `#0369a1` | trạng thái |
 | `reasoning` | `#6d4aa8` | khối suy luận — màu riêng, không dùng cho trạng thái |
 
+Họ xanh nhấn đã đổi từ teal `#2a7360` sang **xanh logo mới** `#0B7A53`. Ba alias
+`--accent-steel` và `--brand` nay trỏ đúng bằng `accent`; `--brand-accent` trỏ
+`--danger` (`#b3261e`) và chỉ `components/vyen-logo.tsx` gọi trực tiếp.
+
 `accent-soft` là token **nền**, không phải token chữ — nó tách riêng khỏi `accent`
-vì nền nhạt trên giấy trắng chỉ đạt ~1.1:1, không đọc được.
+vì nền nhạt trên giấy trắng chỉ đạt 1.14:1, không đọc được.
 
 `accent-dim` là token **vật thể đồ hoạ**, không phải token nền mang chữ: nó vừa
 đủ 3:1 để mắt nhận ra một cột biểu đồ hay một chấm trạng thái, nhưng `text-accent`
-trên nó chỉ được 2.50:1 — fail AA. Chỗ nào cần nền cho chữ nhấn thì dùng
-`accent-soft` (`accent` trên đó là **5.09:1**).
+trên nó chỉ được 1.53:1 — fail AA. Chỗ nào cần nền cho chữ nhấn thì dùng
+`accent-soft` (`accent` trên đó là **4.68:1**).
 
 `reasoning` là token **chữ**, không phải token nền. Dùng nó làm nền đặc sẽ hạ
 `text-primary` trên nền đó xuống ~2.4:1 (fail AA). Nền suy luận phải là
@@ -449,8 +489,9 @@ overlay là sửa điện mạo của nhiều màn hình cùng lúc: đọc hế
   `2xl` 16px. Menu và dialog không cùng bán kính vì chúng không cùng vai trò.
 - Bóng theo §5: menu/popover `lift-md`, dialog/toast `lift-lg`. Overlay không được
   thêm nguồn bóng thứ năm.
-- Viền: menu/popover `border-subtle`, dialog `border-default`. Đây là ranh giới
-  **trong hệ** chứ không phải ranh giới control, nên nó không cần đạt 3:1 như §2.3.
+- Viền: menu/popover `border-subtle`, dialog `border-default`. Cả hai đều là ranh giới
+  **trong hệ** chứ không phải ranh giới control, nên không cần đạt 3:1 như §2.3 —
+  vỏ có nền riêng (`overlay`) và bo góc riêng.
 - Nền: `bg-surface` cho menu nằm trong luồng, `bg-overlay` cho popover rời và
   dialog. Không trộn hai tầng này trong cùng một vỏ.
 - Đệm vỏ: `p-1` đến `p-1.5`. Menu nhiều dòng dùng `p-1.5`.
@@ -508,11 +549,13 @@ mới) — chúng gây **tên sai**, nên đọc code không phản ánh hệ th
 
 ### 9.2 Số liệu của hệ mới
 
-- **24 key, 20 giá trị hex phân biệt.** Bảng sáng cố ý dùng lại một màu cho nhiều
+- **25 key, 21 giá trị hex phân biệt.** Bảng sáng cố ý dùng lại một màu cho nhiều
   vai trò — `#ffffff` cho `surface`/`overlay`/`on-fill`, `#575757` cho
   `secondary`/`diff-ctx`, `#b3261e` cho `danger`/`diff-del` — vì trên giấy trắng,
-  "nền" và "chữ trên nền tô đậm" là hai câu hỏi khác nhau về CÙNG một màu. Test
-  đếm **giá trị** sau khi khử trùng, nên con số 20 là đúng chứ không phải thiếu sót.
+  "nền" và "chữ trên nền tô đậm" là hai câu hỏi khác nhau về CÙNG một màu. Key thứ
+  25 là tầng viền `input` `#949494` (§2.3) — màu **mới**, không phải màu tái sử
+  dụng, nên nó làm số giá trị phân biệt lên đúng một. Test đếm **giá trị** sau khi
+  khử trùng, nên con số 21 là đúng chứ không phải thiếu sót.
 - **Chiều sâu đi qua 4 class.** `.lift-sm` / `.lift-md` / `.lift-lg` / `.well` được
   gọi thẳng ở nhiều file của `components/` + `app/`. Nhiều khối ghi **cả hai** dạng
   — class CSS cho lớp recipe và `shadow-lift-*` cho cùng một khối — ví dụ
@@ -578,18 +621,27 @@ xem §3.
 
 Các tỉ lệ trong §2 được đo tay và **không test canh** (§10.2). Một vòng đo lại bằng
 công thức WCAG trên bảng màu thật bắt được bốn điều; đợt typography + tương phản
-(2026-10-06) đã sửa hai điều đầu, hai điều còn lại vẫn là việc đang treo:
+(2026-10-06) đã sửa hai điều đầu, hai điều còn lại vẫn là việc đang treo. Đợt sửa
+màu nhấn + sửa viền (2026-09-27) sau đó đổi lại giá trị của ba dòng dưới — số ở
+cột phải là số **đang chạy**, số trong mô tả là số đã ghi ở đợt trước:
 
 | Phát hiện | Trạng thái |
 |---|---|
-| `accent-dim` `#7fb8a6` chỉ **2.26:1** trên trắng, 2.07:1 trên `#f5f5f5`. Comment trong `globals.css:59` vẫn ghi "4.0:1, đạt 3:1 cho vật thể đồ hoạ" — sai. Token đang tô cột biểu đồ (`usage-stats.tsx:109`, `telemetry-tab.tsx:209`) và chấm trạng thái (`status-line.tsx:80`), tức đúng loại vật thể mà 1.4.11 đòi 3:1 | **ĐÃ SỬA.** Hạ xuống `#519a85` → 3.05:1 trên `#f5f5f5`, 3.33:1 trên trắng, giữ nguyên tông. Sửa đồng bộ `tailwind.config.ts`, `:root` trong `globals.css`, bảng màu của `tests/design-system.test.ts` và §2.4 — test canh cả hai chiều nên lệch một bên là đỏ |
-| Chấm trí đầu vỏ Settings vẽ `bg-accent-dim` với `text-accent` → **2.50:1**, fail AA ở chữ cỡ `micro` (`settings-dialog.tsx:196`) | **ĐÃ SỬA.** Nền chuyển sang `bg-accent-soft` → `accent` trên đó là 5.09:1 |
-| Số trong bảng §2 đo trên nền khác với nhãn cột: `primary` ghi 16.4:1 "trên `#fff`" nhưng trên `#fff` thật là 17.72:1 (con số 16.4 khớp `#f7f7f7`); `strong` ghi 6.4:1, thật là 7.81:1 | **Đã sửa trong §2** — nhưng comment cũ ở `globals.css:44,55` vẫn ghi số cũ, vì đợt này không đụng code |
-| `border-default` trên nền `bg-raised` là 2.78:1 (`shell-confirm.tsx:159`, `branch-switcher.tsx:39`) | **Cố ý để nguyên.** Ở đó viền không phải tín hiệu nhận diện duy nhất — control có nền `raised` khác nền trang và có chữ bên trong — nên vẫn thoát 1.4.11 theo nghĩa "có tín hiệu nhận diện". Đổi sang `strong` sẽ thắt chặt hơn thiết kế hiện tại |
+| `accent-dim` `#7fb8a6` chỉ **2.26:1** trên trắng, 2.07:1 trên `#f5f5f5`. Comment trong `globals.css:59` vẫn ghi "4.0:1, đạt 3:1 cho vật thể đồ hoạ" — sai. Token đang tô cột biểu đồ (`usage-stats.tsx:109`, `telemetry-tab.tsx:209`) và chấm trạng thái (`status-line.tsx:80`), tức đúng loại vật thể mà 1.4.11 đòi 3:1 | **ĐÃ SỬA, rồi sửa lần nữa.** Đợt 2026-10-06 hạ xuống `#519a85` (3.33:1 trên trắng, 3.05:1 trên `#f5f5f5` — vừa đúng ngưỡng). Đợt sửa màu nhấn siết lại thành `#449879`: **3.49 / 3.26 / 3.20:1** trên trắng / `#f7f7f7` / `#f5f5f5` — vượt ngưỡng trên cả ba nền thay vì sát mép, giữ đúng sắc độ của `accent` (hue 158° so với 159°). Sửa đồng bộ `tailwind.config.ts`, `:root` trong `globals.css`, bảng màu của `tests/design-system.test.ts` và §2.4 — test canh cả hai chiều nên lệch một bên là đỏ |
+| Chấm trí đầu vỏ Settings vẽ `bg-accent-dim` với `text-accent` → **2.50:1**, fail AA ở chữ cỡ `micro` (`settings-dialog.tsx:196`) | **ĐÃ SỬA.** Nền chuyển sang `bg-accent-soft` → `accent` trên đó là **4.68:1** (5.09:1 với bảng màu cũ) |
+| Số trong bảng §2 đo trên nền khác với nhãn cột: `primary` ghi 16.4:1 "trên `#fff`" nhưng trên `#fff` thật là 17.72:1 (con số 16.4 khớp `#f7f7f7`); `strong` ghi 6.4:1, thật là 7.81:1 | **Đã sửa trong §2** — và `strong` sau đó đã đổi bảng chất: nay là hairline `#cccccc` ở **1.61:1** (xem §2.3), không còn là mực 7.81:1 |
+| `border-default` trên nền `bg-raised` là 2.78:1 (`shell-confirm.tsx:159`, `branch-switcher.tsx:39`) | **Cố ý để nguyên.** Ở đó viền không phải tín hiệu nhận diện duy nhất — control có nền `raised` khác nền trang và có chữ bên trong — nên vẫn thoát 1.4.11 theo nghĩa "có tín hiệu nhận diện". Đổi sang `strong` sẽ thắt chặt hơn thiết kế hiện tại. (Con số 2.78:1 nay thuộc về tầng `input`, xem dòng dưới; `border-default` trên `bg-raised` là 1.20:1) |
 
-Cùng đợt đó, comment trong `tests/design-system.test.ts` cũng còn ghi `#18181b` dùng
-cho cả `primary` lẫn `strong` — `hex.strong` thật là `#525252`. §9.2 đã sửa; test thì
-để nguyên.
+**Đợt sửa viền (2026-09-27) — đổi lại cả bảng tỉ lệ của thang viền.** Đây là vòng đo
+lại thứ hai, và nó **thu hẹp** chứ không mở rộng: ba tầng hairline xuống
+1.14 / 1.31 / 1.61:1 (từ 1.26 / 3.03 / 7.81:1), mất tầng `default` là tầng duy
+nhất đạt 1.4.11 — đổi lấy viền mảnh thay vì bê tông. Bù bằng tầng thứ tư
+`input` `#949494` ở **3.03:1**, chỉ dành cho nơi viền là tín hiệu nhận diện duy
+nhất. Phạm vi cụ thể và lập luận cho từng nơi cố ý để nguyên hairline nằm ở §2.3.
+
+Cùng đợt typography, comment trong `tests/design-system.test.ts` cũng còn ghi
+`#18181b` dùng cho cả `primary` lẫn `strong` — lúc đó `hex.strong` thật là
+`#525252`. §9.2 đã sửa; test thì để nguyên.
 
 ### 9.6 Tham chiếu tới tài liệu này trong code — và vì sao đừng tách file vội
 
@@ -658,8 +710,12 @@ npx vitest run tests/design-system.test.ts
   lần khi thiết kế bảng màu, không phải thứ được test canh. Đổi `hex.tertiary`
   thành một màu nhạt hơn sẽ KHÔNG làm test đỏ — hãy tự tính lại trước khi đổi.
 - **Nó không kiểm thứ tự 5 tầng bề mặt** có sáng dần đều hay không.
-- **Nó không kiểm 3 bậc viền có đúng vai trò** — không thể kiểm bằng regex, chỉ
+- **Nó không kiểm 4 bậc viền có đúng vai trò** — không thể kiểm bằng regex, chỉ
   kiểm được bằng mắt. §2.3 là quy tắc để người đọc giữ.
+- **Nó không kiểm phạm vi của tầng `input`** — không assertion nào đòi `.field` /
+  `.checkbox-box` phải dùng `border-input`, hay cấm nó ở nơi khác. `input` chỉ
+  được canh đúng một thứ: nó **có mặt** trong bảng màu §2. Phạm vi đúng của nó là
+  quy tắc miệng, xem §2.3.
 - **Nó không kiểm bao nhiêu component đã migrate.** Danh sách file là hợp đồng:
   file có trong danh sách thì phải sạch, file không có thì **không ai canh**.
 - **Nó không kiểm nội dung.** Một component dùng đúng token sai vai trò vẫn xanh.
@@ -781,8 +837,10 @@ chắc chúng đỏ **đúng lý do**:
   dấu hiệu focus nay là viền accent + vùng nhập lớn lên. `PulseGlow` vẫn nằm
   trong `components/effects/index.tsx` nhưng không còn nơi gọi — gỡ hẳn hay dùng
   lại ở chỗ khác là việc riêng, không thuộc đợt này.
-- **`border-default` cho viền control** (§2.3): 3.03:1 — đạt WCAG 1.4.11 cho ranh
-  giới control, dù dưới 4.5:1 của chữ.
+- **`input` cho ô nhập** (§2.3): 3.03:1 — tầng viền **duy nhất** đạt WCAG 1.4.11,
+  dù dưới 4.5:1 của chữ. Nó không mặc nhiên áp cho mọi control: chỉ ô nhập /
+  checkbox / select, tức nơi viền là tín hiệu nhận diện duy nhất. Ba tầng hairline
+  còn lại nằm dưới ngưỡng **có chủ đích** — xem lập luận ở §2.3.
 
 ### 11.3 Chưa kiểm được ở đây
 
@@ -865,9 +923,11 @@ quyết · kết quả thay đổi ở đâu.**
 
 **1. Sửa hai lỗi tương phản đã đo (§9.5). — ĐÃ XONG (2026-10-06).**
 
-- `accent-dim` `#7fb8a6` → `#519a85`: 3.05:1 trên `#f5f5f5`, 3.33:1 trên trắng.
+- `accent-dim` `#7fb8a6` → `#519a85` (3.05:1 trên `#f5f5f5`, 3.33:1 trên trắng),
+  rồi siết lần nữa thành `#449879` ở đợt sửa màu nhấn: 3.20 / 3.26 / 3.49:1 trên
+  `#f5f5f5` / `#f7f7f7` / trắng.
 - Chấm trí đầu vỏ Settings: `bg-accent-dim` + `text-accent` (2.50:1) → nền
-  `bg-accent-soft` (5.09:1).
+  `bg-accent-soft` (nay **4.68:1**).
 - Đụng 4 file: `tailwind.config.ts`, `app/globals.css`, `tests/design-system.test.ts`,
   `components/settings-dialog.tsx`. Sửa một bên là test đỏ — đó là ý muốn.
 
@@ -1584,8 +1644,11 @@ không tràn ngang ở 1440.
 
 **§15 là cải thiện đặc tả, không phải cải thiện UI.** Thêm được 18 điểm chấm không
 làm giao diện tốt hơn. Ba việc ở §13.2 sau đợt 2026-10-06: hai lỗi tương phản **đã
-sửa** (`accent-dim` nay `#519a85`, chấm trí Settings nay `bg-accent-soft`), và
-typography **đã đổi phần họ chữ** (Inter cho chrome, mono chỉ cho chữ máy) nhưng
-**chưa đổi cỡ** 14/16/12. Đợt này vẫn chưa có bộ ảnh ở §12/§14.9, nên "UI đã tốt
-hơn" vẫn là điều chưa được chứng minh bằng mắt — chỉ có thay đổi kiểm được bằng
-mã và bằng test.
+sửa** (`accent-dim` nay `#449879`, chấm trí Settings nay `bg-accent-soft`), và
+typography **đã đổi cả họ chữ lẫn cỡ** (Inter cho chrome, mono chỉ cho chữ máy;
+`ui` 14 / hội thoại 16 / `meta` 12 — ảnh trước/sau ở
+`docs/design-qa/2026-10-06-type-scale/`). Viền cũng đã đổi — bốn tầng thay vì ba:
+hairline cho mọi khối, cộng một tầng `input` đủ 3:1 cho ô nhập (§2.3) — và đổi đó
+**cố ý đánh đổi**, chưa ai soi bằng mắt. Đợt này vẫn chưa có bộ ảnh ở §12/§14.9,
+nên "UI đã tốt hơn" vẫn là điều chưa được chứng minh bằng mắt — chỉ có thay đổi kiểm
+được bằng mã và bằng test.

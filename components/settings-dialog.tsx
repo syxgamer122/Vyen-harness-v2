@@ -4,7 +4,7 @@ import { Z_CLASS, Z_INDEX } from '@/lib/ui-z';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@/lib/store';
-import { Search, X } from 'lucide-react';
+import { Search, Settings2, X } from 'lucide-react';
 import { useFocusTrap } from '@/lib/hooks/use-focus-trap';
 import { AppearanceTab } from '@/components/settings/appearance-tab';
 import { ProvidersTab } from '@/components/settings/providers-tab';
@@ -199,8 +199,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               * HOẠ (cột biểu đồ, chấm trạng thái), không phải nền mang chữ.
               * Xem DESIGN.md §2.4.
               */}
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-micro font-bold text-accent">
-              $
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">
+              <Settings2 size={14} aria-hidden="true" />
             </span>
             <div className="flex items-center gap-2">
               <h2

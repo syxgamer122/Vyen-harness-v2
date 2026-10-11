@@ -223,7 +223,7 @@ export const ChatItem = memo(function ChatItem({
               }
             }}
             onBlur={handleSaveRename}
-            className="w-full rounded-md border border-strong bg-raised px-2 py-1 font-sans text-ui text-primary focus:border-accent"
+            className="w-full rounded-md border border-input bg-raised px-2 py-1 font-sans text-ui text-primary focus:border-accent"
           />
         ) : (
           <button
@@ -482,13 +482,20 @@ export function Sidebar() {
           </div>
 
           <div className="px-4 pb-3">
+            {/*
+             * Nút GHOST, không phải khối đậm: `bg-primary` full-width từng là
+             * vật nặng nhất trên màn hình, đè ngang lên nội dung chat. Vẫn phải
+             * đọc ra là hành động chính nên giữ icon + chữ `ui` + hàng 36px và
+             * đổi nền lúc hover. Dấu focus toàn cục ở `@layer base` đã lo phần
+             * bàn phím.
+             */}
             <button
               type="button"
               onClick={handleNewChat}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-primary px-4 py-2.5 text-ui font-medium text-on-fill transition-colors duration-150 hover:bg-strong"
+              className="flex h-9 w-full items-center gap-2 rounded-lg px-3 text-ui font-medium text-secondary transition-colors duration-150 hover:bg-raised hover:text-primary"
             >
-              <Plus size={15} className="text-on-fill" />
-              <span>$ new session</span>
+              <Plus size={15} />
+              <span>Cuộc trò chuyện mới</span>
             </button>
           </div>
 
@@ -502,7 +509,7 @@ export function Sidebar() {
                 aria-label="Tìm trong các cuộc trò chuyện"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="$ /search..."
+                placeholder="Tìm cuộc trò chuyện..."
                 className="well w-full rounded-lg border border-default bg-surface py-2.5 pl-9 pr-8 font-sans text-ui text-primary transition-colors duration-150 placeholder:text-tertiary focus:border-accent"
               />
               {isSearching ? (
@@ -554,8 +561,8 @@ export function Sidebar() {
             ) : (
               groups.map((g) => (
                 <div key={g.label} className="pt-2">
-                  <h2 className="px-3 pb-1.5 pt-1 uic text-meta font-semibold uppercase tracking-[0.08em] text-accent">
-                    $ {g.label}
+                  <h2 className="px-3 pb-1.5 pt-1 uic text-meta font-medium text-tertiary">
+                    {g.label}
                   </h2>
                   <div className="flex flex-col gap-1">
                     {g.chats.map((c) => (

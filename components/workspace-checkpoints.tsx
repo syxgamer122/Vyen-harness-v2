@@ -204,7 +204,7 @@ export function WorkspaceCheckpointBar({ chatId, busy = false, onNotice }: Props
           title="Khôi phục các file agent vừa sửa về trạng thái trước đó"
         >
           <History size={12} className="text-accent-steel" aria-hidden />
-          <span>$ undo · {ops.length} changes</span>
+          <span>Hoàn tác · {ops.length} thay đổi</span>
         </button>
       </div>
 
@@ -292,7 +292,7 @@ export function WorkspaceCheckpointBar({ chatId, busy = false, onNotice }: Props
 
             <div className="flex items-center justify-between gap-2 border-t border-subtle bg-raised px-4 py-2.5">
               <span className="text-meta text-text-muted">
-                $ Esc to cancel
+                Esc để đóng
               </span>
               <div className="flex gap-2">
                 <button

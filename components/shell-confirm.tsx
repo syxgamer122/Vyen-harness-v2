@@ -102,23 +102,19 @@ export function ShellConfirm({ state, onClose }: { state: ShellConfirmState | nu
           )}
 
           {/*
-           * Lệnh là MÁY — `font-mono` toàn khối, và dấu `$` nằm ở CỘT RIÊNG
-           * (không lẫn vào nội dung lệnh) để lệnh không bao giờ bị đọc sai
-           * ký tự đầu. `break-all` vì lệnh dài không có chỗ trắng.
+           * Lệnh là MÁY — `font-mono` toàn khối. Không dùng tiền tố `$` như
+           * shell prompt: ở đây nó trang trí chứ không mang thông tin, và
+           * §13.2 nói không phải mọi khối nào cũng nên trông như terminal.
+           * `break-all` vì lệnh dài không có chỗ trắng.
            */}
           <div
             className={`rounded-lg border p-4 font-mono ${
               isDestructive ? 'border-danger/40 bg-danger/5' : 'border-subtle bg-sunken'
             }`}
           >
-            <div className="flex items-start gap-2.5">
-              <span className="select-none font-bold text-accent" aria-hidden="true">
-                $
-              </span>
-              <span className="min-w-0 flex-1 break-all text-body font-semibold leading-relaxed text-accent">
-                {state.command}
-              </span>
-            </div>
+            <span className="block min-w-0 break-all text-body font-semibold leading-relaxed text-accent">
+              {state.command}
+            </span>
           </div>
 
           <p className="font-sans text-meta leading-relaxed text-secondary">
