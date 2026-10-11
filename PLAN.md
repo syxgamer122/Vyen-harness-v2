@@ -1,0 +1,204 @@
+# Kế hoạch nâng cấp UI Vyen Harness (P0–P5) — Lấy cảm hứng từ DeepSeek Harness
+
+Ngày cập nhật: 11/10/2026 (bản 2 — đã đối chiếu với mã nguồn thật).
+Logo chính thức: `Downloads/Gemini_Generated_Image_wfrhj5wfrhj5wfrh.png`.
+
+> **Bản 2 sửa lại 8 điểm của bản 1** sau khi đọc code, đo màu từ ảnh logo và
+> chạy phép tính tương phản. Mục tiêu giữ nguyên; phần hiện thực phải theo các
+> số đo ở §1.
+
+---
+
+## 1. Kết quả rà soát: bản 1 sai ở đâu
+
+| # | Bản 1 nói | Thực tế đã kiểm tra |
+|---|---|---|
+| 1 | P0 logo **cần làm** | **Đã xong.** 3 SVG + `app/icon.svg` + 4 PNG + `favicon.ico` (16+32) đều có, và `icon.svg` đã không còn chữ K. Xem §2. |
+| 2 | Logo là "bướm vi mạch" | Ảnh gốc là **não/bọt sóng** (đám mây tròn) có 2 mắt và 1 miệng nối bằng vạch. Vector hiện có vẽ đúng hình học này. Giữ nguyên, chỉ chỉnh màu. |
+| 3 | `$` xuất hiện ở `sidebar.tsx:491,505,558` | **Đúng cả 3.** Đã xác nhận. |
+| 4 | Composer có chip "Hỏi khi ghi" **và** "Tự chạy lệnh đọc…" là 2 setting | **Sai.** Là **cùng một setting** hiện 2 lần ở 2 breakpoint (`APPROVAL_COPY.smart.short` composer.tsx:146 ở dải trên, `.long` :147 ở footer `hidden lg:flex`). Không cần gộp — nó vốn đã là một. |
+| 5 | "Năng lực chuẩn" nằm trong composer | **Sai.** Nó là **thanh trạng thái trên cùng**: `components/chat/status-line.tsx`. Composer không chứa dòng đó. Sửa nhầm file sẽ hỏng layout. |
+| 6 | Có "banner đóng băng tab thu" cần thu gọn 28px | **Sai — không tồn tại.** Cái duy nhất là `ObserverBanner` (chat-interface.tsx:42-85) báo nhiều tab, không phải tab đóng băng. Hạng mục này **xoá khỏi kế hoạch**. |
+| 7 | Chuỗi class 300+ ký tự ở `sidebar.tsx` và `tool-trace.tsx` | **Phần lớn sai.** Sidebar dài nhất 264 ký tự (:457); tool-trace chỉ **85** ký tự (:841). Chỉ `composer.tsx` vượt 300 (:1556, template literal). Lý do dựng `components/ui/` vì độ dài chuỗi class **yếu hơn bản 1 nói** — xem §3. |
+| 8 | "Viền hairline là đánh đổi với WCAG 1.4.11" | **Câu này đúng, nhưng bỏ sót tiền đề:** app **đã** dùng viền không đạt 1.4.11 (`subtle` `#e5e5e5` = **1.26:1**). Xem §4. |
+
+### Số đo đã tự chạy
+
+Ảnh logo 2048×2048, khung nghệ thu `x 342..1855, y 406..1855` (1514×1450, tỉ lệ 1.044 — **không phải hình vuông**, cần canh lại khi khai báo viewBox).
+
+| Màu | Đo được | Dùng làm gì |
+|---|---|---|
+| Lime sáng nhất | `#81EE61` (1.46:1) | **chỉ trang trí** — không làm chữ, không làm viền |
+| Lime chủ đạo | `#6BD265` (1.90:1) | **chỉ trang trí** |
+| Xanh đậm trên logo | `#11835F` (**4.73:1**) | nền nút, đạt AA |
+| Miệng/mắt | `#138762` (4.50:1) | sát ngưỡng — **không dùng làm nền chữ trắng** |
+| Chữ/link | `#0B7A53` (**5.35:1**) | accent cho chữ |
+| Accent hiện tại | `#2a7360` (5.65:1) | sẽ đổi sang họ `#11835F` |
+
+---
+
+## 2. P0 — Logo: **đã xong**, chỉ còn 3 việc vỡ
+
+PLAN.md bản 1 ghi "HOÀN THÀNH" và điều đó **gần đúng**. Xác minh từng mục:
+
+- ✅ `public/icons/vyen-logo-full.svg` (2781 B), `-mark.svg` (1470 B), `-mono.svg` (1256 B) — đều vẽ hình não, không còn chữ V.
+- ✅ `app/icon.svg` (1601 B) — chữ K đã bị thay.
+- ✅ `components/vyen-logo.tsx` (209 dòng) — có `MARK_D`, gradient, mắt/miệng.
+- ✅ `public/favicon.ico` — ICO count=2, đúng frame 16×16 + 32×32.
+- ✅ PNG 180/192/512/maskable — nhất quán với SVG.
+- ➖ **Lệch đường dẫn:** không có `public/manifest.webmanifest` tĩnh và không có `components/manifest.ts`. Thực tế là `app/manifest.ts` (Next `MetadataRoute`) — **chạy đúng chức năng**, chỉ sai mô tả. Không cần sửa.
+
+**3 việc còn lại của P0:**
+
+1. **Dead code.** `resolvedVariant` (vyen-logo.tsx:21) có 3 nhánh nhưng `variant` **không được truyền ở đâu cả** (`grep variant=` → 0 hit). Chỉ call site là :167 `<VyenMark size={isLarge ? 34 : 16} />` → luôn rơi vào nhánh `mark`. Nhánh `full` và `mono` **không bao giờ render**. → hoặc truyền `variant` thật, hoặc xoá 2 nhánh. Không để lại.
+2. **`sharp` là dependency không khai báo.** `scripts/generate-png-icons.cjs` `require('sharp')` nhưng sharp **không có trong `package.json`** — chỉ resolve được vì Next khai nó là optionalDependency. `npm ci --omit=optional` là script chết. → thêm vào `devDependencies` pin chính xác, rồi `npm install --package-lock-only --ignore-scripts`. (AGENTS.md §9: dep có install script phải review + thêm ALLOWLIST trước.)
+3. **`PiMark` / `PiLogo` không còn dùng.** Export còn, 0 usage. → xoá.
+
+> ⚠️ **Không có git.** `C:/Users/huumanh/Downloads/Vyen-harness-main/.git` **không tồn tại**; `git status` → `fatal: not a git repository`. Có các thư mục backup cũ (`.audit-backup-20261010/`, `.audit-backup-phase0-2026-10-11/`, `.backup/`, `.pre-ui-fix-backup/`) nhưng **không có lịch sử**. Đây là refactor 8–12 ngày. **Việc đầu tiên phải làm là `git init` + commit trạng thái hiện tại** — không có lưới an toàn thì "surgical change" chỉ là ý tưởng.
+
+---
+
+## 3. P1 — Token và primitives
+
+### 3.1 Token: **đừng làm bước chuyển hex → CSS var**
+
+Bản 1 nói token đang "khai hai nơi" nên sửa một chỗ là lệch. Đọc code thì không đúng như vậy:
+
+- `tailwind.config.ts:20-61` khai `hex` (29 giá trị) → đẩy vào `theme.extend.colors`.
+- `tailwind.config.ts:14` có `token = (name) => 'rgb(var(--name) / <alpha-value>)'` cho **14 alias** đã đọc CSS var.
+- `app/globals.css:25-107` khai `--token: R G B`.
+- Tailwind config **đã có comment** (dòng 7-13) giải thích đúng lý do chia 2 nguồn: dạng channel RGB là để Tailwind vẫn áp `/60` modifier, còn token không cần alpha thì khai hex cho gọn.
+
+Vậy đây là **phân tách có chủ đích**, không phải trùng lặp. Chuyển hết sang CSS var sẽ **làm hỏng `tests/design-system.test.ts:453`** (đòi `configHexes.size === 20` và so sánh hai chiều với `PALETTE_TOKENS`) và `:497` (đòi mọi `--token` trong globals.css nằm trong palette). → **Bỏ hạng mục này.** Thay bằng: sửa `accent` + 3 token viền, đi theo luật 3-file.
+
+### 3.2 Thứ thực sự cần đổi
+
+| Token | Hiện tại | Đề xuất | Lý do |
+|---|---|---|---|
+| `accent` | `#2a7360` (teal xỉn) | `#0B7A53` (5.35:1) | Khớp họ màu logo |
+| `accent` (nền nút) | — | `#11835F` (4.73:1) | Trích từ logo, đạt AA |
+| `border-subtle` | `#e5e5e5` | `rgba(0,0,0,0.06)` | Lớp trang trí, đã không đạt 1.4.11 sẵn |
+| `border-default` | `#949494` (**3.03:1**) | `rgba(0,0,0,0.12)` | Xem §4 — đây là quyết định lớn nhất |
+| `border-strong` | `#525252` | `rgba(0,0,0,0.20)` | |
+
+**Luật bất di bất dịch:** sửa token ⇒ sửa **cùng một lượt** `tailwind.config.ts` + `app/globals.css` + `tests/design-system.test.ts` (DESIGN.md:22-24).
+
+### 3.3 `components/ui/` — làm, nhưng vì lý do khác
+
+Lý do đúng không phải chuỗi class dài (xem §1 #7), mà là: hiện có **0 primitive**, phần trùng lặp nằm rải ở `.btn-*` / `.icon-btn` / `.menu-item` trong `globals.css:344-408`, và `tool-trace.tsx` đang dựng 5 lớp trang trí cho 1 dòng.
+
+Ưu tiên theo thứ tự giá trị, **không dựng cả 11 cái một lượt**:
+1. `DisclosureRow.tsx` — dùng ngay ở P3 (tool row).
+2. `TextShimmer.tsx` — dùng ngay ở P3 (trạng thái đang chạy).
+3. `Button` / `IconButton` / `Pill` — gom class lặp ở sidebar + composer.
+4. `Input` / `Menu` / `Dialog` / `Tooltip+Kbd` — để P4.
+
+⚠️ **Chi phí ẩn:** `design-system.test.ts:643` và `:791` quét **toàn bộ** `components/` + `app/`; file mới phải nằm trong allow-list `TOKENIZED_COMPONENTS` (:42-100) và `:824` đòi mỗi file dùng ít nhất 1 semantic token. Mỗi primitive mới = 1 dòng allow-list + phải thoát quy tắc viền-kèm-màu ở `:615`. Tính vào trước khi làm.
+
+### 3.4 Chi tiết lấy từ DeepSeek (đã đọc mã nguồn họ)
+
+- **Hairline:** `border-width: 0.5px` thật, **hoặc** đưa vào box-shadow dạng `0 0 0 0.5px` cho mặt phẳng nổi (họ dùng cả hai; `--dsw-elevation-stroke`).
+- **Hover/active:** `rgba` trên nền trong suốt — `--interactive-bg-hover: rgba(38,49,72,.06)`, `-hover-accent: .14`, `-active: .10`. Họ có thêm biến `-hover-solid` và **ghi rõ lý do**: token trong mờ làm nội dung lọt qua.
+- **Focus:** `:focus-visible { outline-width: 2px }` + `html[data-input-modality='pointer']` → ẩn ring khi dùng chuột. Vyen đã có outline 2px ở `globals.css:154-157`; chỉ cần thêm script ~10 dòng.
+- **`corner-shape`:** `@supports (corner-shape: superellipse(1.5))` trên `*, *::before, *::after`; **bắt buộc** phải opt-out `corner-shape: round` cho hình tròn (họ làm vậy ở ToolRow, StateDot, scrollbar) — bỏ sót thì mọi bo góc thành siêu elip.
+- **Scrollbar:** `5px`, thumb `border-radius: 999px` + `background-clip: content-box`. Họ gate nhánh Firefox bằng `@supports not selector(::-webkit-scrollbar)` và **ghi chú phải như vậy** — trộn cả hai cách sẽ giết hover.
+- **Thang bo góc:** xs 4, sm 8, md 12, lg 16, xl 20, panel 28.
+
+> **Giấy phép:** DeepSeek Harness là **MIT, Copyright (c) 2026 DeepSeek** — tham chiếu code thì phải giữ notice. `BRAND_GUIDELINES.md` của họ là **chính sách thương hiệu, không phải giấy phép**: cấm dùng "DeepSeek Harness" trong tên dự án và cấm hàm ý bảo trợ chính thức. Họ dùng CSS Modules, ta dùng Tailwind → **lấy giá trị token và kỷ luật, không port công nghệ, không dùng tên hay bảng màu của họ.**
+
+---
+
+## 4. Quyết định đã chốt
+
+### Q1. Viền hairline — chấp nhận, có điều kiện
+
+Đã đo (bảng §4 ở phần trên): **mọi** bậc hairline của DeepSeek đều **không đạt** WCAG 1.4.11 — 0.04 → 1.11:1, 0.06 → 1.14:1, 0.10 → 1.25:1, 0.12 → 1.32:1, 0.16 → 1.45:1, 0.20 → 1.61:1. Ngưỡng là 3:1.
+
+Nhưng bối cảnh bản 1 bỏ sót: **`border-subtle` hiện tại `#e5e5e5` đã chỉ 1.26:1** — tức app *đã* dùng viền trang trí không đạt. `border-default` `#949494` (3.03:1) là nơi duy nhất đang đạt.
+
+→ **Quyết định:** giữ một tầng đạt 3:1 cho **form control trong Settings** (nơi cần phân biệt ranh giới ô nhập), các nơi khác dùng hairline. Bù bằng placeholder, icon, và focus ring 2px. Ghi rõ sự đánh đổi này vào DESIGN.md §2.3 kèm số đo — không sửa token rồi im lặng.
+
+### Q2. Dark mode — **để sau** (theo chỉ đạo)
+
+DESIGN.md §7 khoá light-only; `design-system.test.ts:1700` cấm mọi biến thể `dark:`; `tool-trace.test.ts:772` lặp lại điều đó. (Hai test này **đặt tên trái nhau** — một nói "dark-only", một nói "một theme sáng" — nhưng cùng cấm `dark:`, và `.dark` ở `globals.css:121-123` là no-op `color-scheme: light`.) Sau P1 thì chi phí thêm thấp, nhưng **không phải việc của đợt này.**
+
+### Q3. Logo — **giữ vector hiện có**
+
+Vector đã có khớp hình học ảnh gốc. Chỉ chỉnh **màu accent** sang họ `#11835F`/`#0B7A53`, và sửa viewBox cho đúng tỉ lệ **1.044:1** (đang giả định vuông). Lime `#6BD265`/`#81EE61` chỉ để trang trí. Ba bản full / mark / mono giữ nguyên chiến lược (≥48px 2 lớp viền; 16–32px 1 lớp + màu đặc vì 2 lớp mảnh sẽ nhoè ở favicon).
+
+### Q4. Titlebar — **làm kiểu "tấm main nổi"**
+
+Launcher chạy Edge `--app` (kiểm tra lại `scripts/launch-desktop.cjs` trước khi đụng), nên không cần custom titlebar: sidebar khác nền, main bo góc nổi lên.
+
+---
+
+## 5. Các giai đoạn còn lại
+
+> Mọi hạng mục đã bị bác ở §1 (mục 4, 5, 6) **không quay lại**. Bỏ hẳn.
+
+### P1 — Token + primitives *(1–2 ngày)*
+1. `git init` + commit nền. *(Làm trước mọi thứ.)*
+2. Đổi `accent` + 3 token viền — **3 file cùng lượt**.
+3. Ghép `lift-*`/`.well` thêm lớp hairline, **giữ đúng 4 nguồn bóng** (test `:245` đòi đúng 4, `:428` đòi đúng key set).
+4. `corner-shape` + `data-input-modality` + scrollbar 5px, có `prefers-reduced-motion`.
+5. `DisclosureRow` + `TextShimmer` + `Button`/`IconButton`/`Pill`.
+6. Dọn P0: xoá `PiMark`/`PiLogo`, xử lý nhánh `full`/`mono` chết, khai `sharp`.
+
+**Chứng minh:** `npx vitest run tests/design-system.test.ts` xanh · `npm run typecheck` 0 lỗi · `npm run lint` 0 lỗi.
+
+### P2 — Shell *(1–2 ngày)*
+- `components/sidebar.tsx`: bỏ `$` ở **:491, :505, :558**; nhóm ngày (`h2` :557) đổi sang chữ thường 12px xám — hiện là `uppercase tracking-[0.08em] text-accent`, tức **đang tranh chấp màu với nút chính**; nút New session (:485) `bg-primary` full-width → ghost 36px.
+- `components/backup-reminder.tsx`: hiện là `notice-warn` **trong sidebar**, ~110–130px. → toast, hoặc chấm báo cạnh Cài đặt. Nhớ nó tự ẩn sau 1 ngày (`SNOOZE_DAYS`).
+- `components/chat/status-line.tsx`: pill ACT (:164) là toggle plan/act thật — làm thành segmented control; context meter (:250) `h-1.5 w-12` + tooltip `7.7k / 200k` (hiện thiếu khoảng trắng quanh `/` ở :260).
+
+### P3 — Lõi chat *(2–3 ngày)*
+- **Hero** (`message-list.tsx:737-778`): `VyenLogo` 34px trong tile 64px → ~40px; bỏ pill `agent` và dòng `AI Innovations`; gợi ý thành ghost chip.
+- **Composer** (`composer.tsx`): dải chip trên :1217 + toolbar :1503 + dòng phím tắt :1673 → **còn 1 hàng**. Giữ nguyên cơ chế 2-breakpoint của chip quyền (chỉ đổi nhãn).
+- **Tool trace** (`tool-trace.tsx:841`): bỏ 5 lớp trang trí (shadow + nền + vạch trái 2px + hover) → dòng 24px không nền, trạng thái chạy = shimmer, chữ "đang chạy" (`statusLabel` :815) thành `.visuallyHidden`.
+- **Gom cụm tool call**: hiện **không có** (`lib/agent-tools.ts:694` ghi rõ guard dedupe đã bị gỡ) và `groupByPhase` (`lib/tool-phases.ts:119`) chỉ nhóm **theo phase**, không gộp dòng. Đây là **tính năng mới**, không phải sửa lại — và DeepSeek dùng cơ chế liên kết linked-list + flush buffer (`process-groups.ts:153-179`), phức tạp hơn vẻ ngoài. **Đề xuất: bỏ khỏi đợt này**, làm sau. "đang chạy" xuất hiện 13 lần trong file nhưng **chỉ 1 là code thật** (:815), 12 cái còn lại là comment.
+- **Bong bóng user** (`message-item.tsx:299`): `max-w-[76%]` → ~70%, `.user-note` (`globals.css:652`) `rounded-xl` → bo 20px. Assistant cố ý **không** có bọng — giữ nguyên.
+
+### P4 — Settings, menu, trạng thái *(1–2 ngày)*
+Nền mờ trong suốt cho menu/popover, settings dialog theo primitive P1, skeleton + empty/error state.
+
+### P5 — Hoàn thiện *(1–2 ngày)*
+Motion 150–200ms + `prefers-reduced-motion`, rà tương phản lại (**đo, không ước lượng**), chụp before/after ở 375/768/1024/1440 vào `docs/design-qa/YYYY-MM-DD-<kebab>/` theo đúng convention sẵn có (3 thư mục mẫu: `2026-10-06-type-scale`, `2026-10-07-turns`, `2026-10-08-composer`).
+
+---
+
+## 6. Ràng buộc kiểm thử — đọc trước khi sửa
+
+`tests/design-system.test.ts` **1709 dòng, ~47 khối `it()`, toàn bộ là regex trên mã nguồn** (không render DOM). Đổi những thứ sau **chắc chắn làm đỏ**:
+
+| Sửa cái này | Test nào đỏ |
+|---|---|
+| `border-default` / bất kỳ hex nào | `:453` (đòi đúng 20 hex + so hai chiều), `:497`, `:1254` (đo lại tương phản), và `composer-contrast.test.ts:386` (hardcode `#f9f9f9`) |
+| Hex → CSS var | `:453` + `:497` ngay lập tức |
+| Thang bo góc | `:369` (đơn vị px, tăng nghiêm ngặt), `:842`, `:897`, `:909`, `:926` |
+| Bóng | `:245` (đúng 4 nguồn), `:428` (đúng key set) |
+| Thêm file vào `components/ui/` | `:643`, `:791`, `:824` — phải thêm vào allow-list `TOKENIZED_COMPONENTS` (:42-100) |
+| Viền trong input | `:1144` cấm `outline-none`/`focus:ring-0` trên input (trừ `composer.tsx` + `settings-dialog.tsx`) |
+| Transition | `:1230` cấm `duration-(0\|50\|75\|100)`, `:1420` cấm `<150ms` |
+| Bất kỳ `dark:` nào | `:1700` |
+
+Ngoài ra: `composer-affordances.test.ts:466` đòi chip có `rounded-lg`; `tool-trace.test.ts:772` cấm `dark:`. **Không có file `.snap`** nào → không rủi ro snapshot.
+
+Lệnh: `npm run typecheck` → `npm run lint` → `npx vitest run tests/<file>.test.ts`. `npm test` là **225 file cả bộ**. Vòng lặp nhanh dùng `--related <files>`.
+
+---
+
+## 7. Nghiệm thu
+
+1. Cùng trạng thái với 2 ảnh gốc, so before/after ở 4 bề rộng.
+2. Composer: 3 tầng chrome → 1.
+3. Tool row: hết nền, hết viền, cao 24px.
+4. Sidebar: hết `$`.
+5. Tương phản **đo lại và đính kèm số**, test xanh, typecheck + lint sạch.
+6. `git log` cho thấy từng bước tách được.
+
+## 8. Việc chưa làm, ghi để khỏi quên
+
+- **Gom cụm tool call** — bỏ khỏi đợt này (§5 P3), làm sau.
+- **Dark mode** — để sau theo chỉ đạo.
+- **Chi tiết hoàn thiện khác** (tooltip có phím tắt, skeleton, empty/error state) — P4.
+- `DESIGN.md` 117 KB **chưa được cập nhật**. Mọi quyết định ở §4 (đặc biệt là đánh đổi 1.4.11) phải được ghi vào §2.3 kèm số đo, nếu không lần sau lại đọc một spec nói điều không còn đúng.
