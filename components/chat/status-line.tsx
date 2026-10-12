@@ -82,10 +82,20 @@ const TONE_BAR: Record<ContextMeterTone, string> = {
   error: 'bg-danger',
 };
 
-/** Chữ phân cách giữa các mảnh của thanh trạng thái. */
-function Sep() {
+/**
+ * Chữ phân cách giữa các mảnh của thanh trạng thái.
+ *
+ * `className` để chỗ gọi ép CÙNG breakpoint với thứ nó phân cách: một dấu `·`
+ * hiện ở bề rộng này mà nội dung hai bên lại ẩn đi là ký hiệu thừa, không mang
+ * thông tin. Mặc định (không truyền gì) thì hiện ở mọi bề rộng — đúng với hai
+ * chỗ gọi còn lại.
+ */
+function Sep({ className }: { className?: string }) {
   return (
-    <span aria-hidden="true" className="flex-none select-none px-0.5 text-disabled">
+    <span
+      aria-hidden="true"
+      className={`flex-none select-none px-0.5 text-disabled${className ? ` ${className}` : ''}`}
+    >
       ·
     </span>
   );
@@ -126,14 +136,19 @@ export const StatusLine = memo(function StatusLine({
   }, [models, model]);
 
   /*
-   * Trạng thái chạy gộp chung với mode thành MỘT mảng dẫn đầu: `plan · rảnh`
-   * đọc như một câu, thay vì hai pill rời rạc cạnh tranh sự chú ý.
+   * Trạng thái chạy gộp chung với mode thành MỘT mảng dẫn đầu: `Khảo sát ·
+   * sẵn sàng` đọc như một câu, thay vì hai pill rời rạc cạnh tranh sự chú ý.
+   *
+   * "sẵn sàng" chứ không phải "rảnh": "rảnh" là từ đời thường, đúng nghĩa nhưng
+   * trên một thanh trạng thái nó đọc như nhận xét về tải hệ thống ("máy đang
+   * rảnh") chứ không phải trạng thái của agent. Người dùng lần đầu đọc được
+   * "chưa ai đang làm gì" là đủ — đó là điều cần truyền.
    *
    * `tra cứu web` là lúc hook đang gom kết quả web TRƯỚC khi gửi, nên nó đứng
    * riêng chứ không gộp vào `đang chạy`: người dùng đang chờ kết quả tra cứu,
    * chưa phải chờ model.
    */
-  const runLabel = run.webBusy ? 'tra cứu web' : run.streaming ? 'đang chạy' : 'rảnh';
+  const runLabel = run.webBusy ? 'tra cứu web' : run.streaming ? 'đang chạy' : 'sẵn sàng';
   const running = run.webBusy || run.streaming;
 
   return (
@@ -171,6 +186,20 @@ export const StatusLine = memo(function StatusLine({
          *
          * §15.3 điểm 13 cấm phân cấp bằng viền/shadow khắp nơi; ở đây viền là
          * DUY NHẤT trên thanh trạng thái, dành cho đúng một control.
+         *
+         * Chữ thường, KHÔNG `uppercase tracking-[0.08em]`: bản cũ in `plan` /
+         * `act` thành "PLAN" / "ACT" — in hoa + giãn chữ là đúng idiom terminal,
+         * và người dùng lần đầu đọc "ACT" như một mã nội bộ chứ không phải nhãn.
+         * Nay là chữ Việt có nghĩa (`Khảo sát` / `Thực hiện`) nên in hoa vừa
+         * thừa vừa phá đúng thứ cần đọc.
+         *
+         * Giữ `text-micro` dù nhãn đã dài hơn, và đó là có tính toán: ở 375px
+         * khung nội dung còn 343px, cụm phải (thinking/xuất/nén/xóa) + chỉ số
+         * ngữ cảnh chiếm ~175px, trừ khoảng cách còn ~113px cho nút menu +
+         * pill + trạng thái; "sẵn sàng" chiếm ~48px nên pill chỉ được ~62px —
+         * "Thực hiện" ở 10px vừa khít, ở `text-meta` (12px) sẽ tràn và đẩy thanh
+         * trạng thái cuộn ngang. Muốn chữ to hơn thì phải cắt thứ khác khỏi hàng
+         * này trước, đừng chỉ nổi cỡ chữ.
          */}
         {onToggleAgentMode && (
           <button
@@ -178,20 +207,22 @@ export const StatusLine = memo(function StatusLine({
             onClick={onToggleAgentMode}
             disabled={agentModeDisabled}
             aria-label={
-              agentMode === 'plan' ? 'Chuyển sang ACT mode' : 'Chuyển sang PLAN mode'
+              agentMode === 'plan'
+                ? 'Chuyển sang Thực hiện: cho phép agent ghi file và chạy lệnh'
+                : 'Chuyển sang Khảo sát: agent chỉ đọc và hỏi'
             }
             title={
               agentMode === 'plan'
-                ? 'PLAN: agent chỉ đọc và hỏi, bấm để cho phép ghi'
-                : 'ACT: agent đọc + ghi file, chạy lệnh, bấm để về PLAN'
+                ? 'Khảo sát: agent chỉ đọc và hỏi. Bấm để cho phép ghi.'
+                : 'Thực hiện: agent đọc, ghi file và chạy lệnh. Bấm để về Khảo sát.'
             }
-            className={`flex-none rounded-md border px-2 py-1 uppercase tracking-[0.08em] text-micro transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`flex-none rounded-md border px-2 py-1 text-micro transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 ${
               agentMode === 'plan'
                 ? 'border-warning bg-warning/10 text-status-warning'
                 : 'border-default bg-surface text-secondary hover:border-strong hover:text-primary'
             }`}
           >
-            {agentMode === 'plan' ? 'plan' : 'act'}
+            {agentMode === 'plan' ? 'Khảo sát' : 'Thực hiện'}
           </button>
         )}
 
@@ -225,7 +256,20 @@ export const StatusLine = memo(function StatusLine({
         {/* Workspace + nhánh: chỉ khi còn chỗ, là chi tiết phụ. */}
         {workspace && (
           <>
-            <Sep />
+            {/*
+             * Dấu phân cách PHẢI cùng breakpoint với thứ nó phân cách.
+             *
+             * Bản cũ để `<Sep />` hiện ở mọi bề rộng trong khi span bên dưới là
+             * `hidden … lg:inline`: dưới `lg` (đúng dải mobile 375 mà ảnh QA
+             * chụp) màn hình hiện một dấu `·` TRƠ TRƠN giữa tên model và chỉ số
+             * ngữ cảnh — có dấu phân cách nhưng không có gì ở hai bên cần phân.
+             * Người đọc lần đầu thấy một ký hiệu lạ và tự suy đoán nó mang thông
+             * tin gì, đúng lỗi "ký hiệu không mang thông tin" trong nhận xét QA.
+             *
+             * Hai `<Sep />` còn lại (mode/trạng thái, ngữ cảnh) KHÔNG đổi: chúng
+             * phân cách hai thứ hiện ở MỌI bề rộng.
+             */}
+            <Sep className="hidden lg:inline-flex" />
             <span
               className="hidden flex-none truncate text-tertiary lg:inline"
               title={
@@ -249,13 +293,30 @@ export const StatusLine = memo(function StatusLine({
          * Dưới `lg` chỉ ẨN THANH, không rút còn phần trăm: `12%` không nói
          * được 12% của bao nhiêu, còn `7.7k / 200k` thì đọc được ở mọi bề rộng
          * và vẫn là con số người dùng quyết định (mốc nén) dựa trên đó.
+         *
+         * Vượt trần thì PHẢI NÓI BẰNG CHỮ, không chỉ bằng màu đỏ.
+         *
+         * `computeMeter` cố ý không clamp `percent` (`context-meter.tsx`, khoá
+         * bởi `tests/context-meter.test.ts:49` — "user thấy vượt trần") nên lượt
+         * dài có thể in `196k / 128k`. Con số đúng, nhưng tự nó không trả lời
+         * được câu người dùng lần đầu sẽ hỏi: "trần 128k mà sao lại 196k, có
+         * hỏng không?" — đáp án là "hội thoại đã quá trần model, cần nén", tức
+         * một việc CÓ THỂ LÀM ngay bằng nút nén ở cụm phải. Chỉ tô đỏ thì người
+         * dùng phải tự suy ra, mà §6 cấm đưa nghĩa chỉ bằng màu.
+         *
+         * Chữ "vượt trần" chỉ xuất hiện khi thật sự vượt (`ratio > 1`) nên
+         * trường hợp thường không mất chỗ ngang.
          */}
         {meter && (
           <>
             <Sep />
             <div
               className="flex min-w-0 flex-none items-center gap-1.5"
-              title={`Ngữ cảnh: ${fmt(ctxUsed!)} / ${fmt(meter.safeMax)} token (${meter.percent}%)`}
+              title={
+                meter.ratio > 1
+                  ? `Ngữ cảnh ${fmt(ctxUsed!)} / ${fmt(meter.safeMax)} token (${meter.percent}%) — ĐÃ VƯỢT TRẦN model. Phần đầu hội thoại có nguy cơ bị cắt; bấm nút nén ở bên phải để gộp phần cũ thành tóm tắt.`
+                  : `Ngữ cảnh: ${fmt(ctxUsed!)} / ${fmt(meter.safeMax)} token (${meter.percent}%)`
+              }
             >
               <div
                 role="progressbar"
@@ -274,6 +335,13 @@ export const StatusLine = memo(function StatusLine({
                 className={`flex-none whitespace-nowrap tabular-nums text-ui ${TONE_TEXT[meter.tone]}`}
               >
                 {fmt(ctxUsed!)} / {fmt(meter.safeMax)}
+                {/*
+                 * Chữ "vượt trần" đứng NGAY CẠNH con số, không chỉ trong
+                 * `title`: tooltip phải rê chuột mới thấy, còn người dùng lần
+                 * đầu nhìn hàng trạng thái là đã thấy `196k / 128k` và bối rối
+                 * ngay lúc đó. Đây cũng là lúc họ cần biết có nút nén để bấm.
+                 */}
+                {meter.ratio > 1 ? ' · vượt trần' : ''}
               </span>
             </div>
           </>

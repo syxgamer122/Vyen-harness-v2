@@ -111,13 +111,14 @@ export function AppearanceTab() {
           <span className="min-w-0">
             <span className="field-label block">Tin xếp hàng khi AI đang chạy</span>
             <span className="mt-0.5 block text-meta leading-relaxed text-tertiary">
-              Enter khi AI đang trả lời = steering (gửi ngay khi lượt xong), Alt+Enter =
-              follow-up (gửi khi AI rảnh). Chọn cách bắn hàng đợi khi đến lượt.
+              Enter khi AI đang trả lời = gửi ngay khi lượt này xong. Alt+Enter =
+              chỉ gửi khi AI rảnh. Mỗi ô chọn gửi từng tin hay gửi một lượt
+              tất cả.
             </span>
           </span>
           <span className="flex flex-shrink-0 flex-col gap-1">
             <select
-              aria-label="Chế độ steering"
+              aria-label="Tin nhập thêm khi AI đang trả lời"
               value={settings.steeringMode}
               onChange={(e) => {
                 const v: unknown = e.target.value;
@@ -125,11 +126,11 @@ export function AppearanceTab() {
               }}
               className="select-field"
             >
-              <option value="one-at-a-time">Steering: từng tin</option>
-              <option value="all">Steering: tất cả</option>
+              <option value="one-at-a-time">Tin nhập thêm: từng tin</option>
+              <option value="all">Tin nhập thêm: tất cả</option>
             </select>
             <select
-              aria-label="Chế độ follow-up"
+              aria-label="Tin xếp hàng chờ AI rảnh"
               value={settings.followUpMode}
               onChange={(e) => {
                 const v: unknown = e.target.value;
@@ -137,8 +138,8 @@ export function AppearanceTab() {
               }}
               className="select-field"
             >
-              <option value="one-at-a-time">Follow-up: từng tin</option>
-              <option value="all">Follow-up: tất cả</option>
+              <option value="one-at-a-time">Tin chờ AI rảnh: từng tin</option>
+              <option value="all">Tin chờ AI rảnh: tất cả</option>
             </select>
           </span>
         </div>

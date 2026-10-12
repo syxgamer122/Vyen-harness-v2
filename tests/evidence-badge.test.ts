@@ -425,11 +425,11 @@ describe('status line — từ trạng thái tiếng Việt', () => {
    */
   it('runLabel đã dịch sang tiếng Việt', () => {
     const literals = copyLiterals(REL);
-    for (const word of ['tra cứu web', 'đang chạy', 'rảnh']) {
+    for (const word of ['tra cứu web', 'đang chạy', 'sẵn sàng']) {
       expect(literals, `runLabel thiếu "${word}"`).toContain(word);
     }
-    for (const word of ['idle', 'running', 'no workspace']) {
-      expect(literals, `còn từ trạng thái tiếng Anh "${word}"`).not.toContain(word);
+    for (const word of ['idle', 'running', 'no workspace', 'rảnh']) {
+      expect(literals, `còn từ trạng thái không đúng cho UI "${word}"`).not.toContain(word);
     }
   });
 

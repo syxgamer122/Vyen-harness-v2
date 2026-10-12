@@ -202,3 +202,76 @@ Lệnh: `npm run typecheck` → `npm run lint` → `npx vitest run tests/<file>.
 - **Dark mode** — để sau theo chỉ đạo.
 - **Chi tiết hoàn thiện khác** (tooltip có phím tắt, skeleton, empty/error state) — P4.
 - `DESIGN.md` 117 KB **chưa được cập nhật**. Mọi quyết định ở §4 (đặc biệt là đánh đổi 1.4.11) phải được ghi vào §2.3 kèm số đo, nếu không lần sau lại đọc một spec nói điều không còn đúng.
+
+---
+
+## 9. Đợt "dễ dùng lần đầu" — 2026-10-12
+
+Nguồn: đánh giá của người dùng trên ảnh QA `docs/design-qa/` (06–08/10), đã đối
+chiếu lại với mã nguồn. **5/8 claim trong bản đánh giá đã được sửa trước 10/10**
+(`$`, trùng nhãn trạng thái tool, banner sao lưu 130px, số "0" cạnh tên phiên,
+nhãn tab Settings bị cắt — xem `PLAN.md` §5 + chính comment trong từng file).
+Đợt này chỉ làm 3 việc **còn đúng** trong mã hiện tại.
+
+### Bước 1 — Dấu `·` treo lơ lửng trên mobile (bug thật, chưa ai canh)
+
+| Việc | Cách chứng minh |
+|---|---|
+| `components/chat/status-line.tsx:228` — `<Sep />` của workspace không `hidden`, span sau nó lại `hidden … lg:inline` → dưới `lg` hiện `·` không có nội dung phía sau | Test mới `tests/status-line-copy.test.ts`: đọc source, đoạn `workspace` phải có `<Sep />` **và** span cùng chịu chung một điều kiện hiển thị. Đảo ngược (bỏ `hidden` ở Sep) là ĐỎ |
+
+Sửa: cho `<Sep />` đó `hidden lg:inline-flex` — cùng breakpoint với span nó
+phân cách. Không đổi `Sep` dùng chung vì 2 chỗ còn lại (`:212`, `:255`) phải hiện
+ở mọi bề rộng.
+
+### Bước 2 — Nhãn tiếng Việt, bỏ thuật ngữ terminal
+
+| Việc | Cách chứng minh |
+|---|---|
+| `status-line.tsx:194` in `act`/`plan` + class `uppercase` → ra "ACT"/"PLAN" | Test: `copyLiterals` không còn `act`/`plan`; nhãn mới là `Thực hiện`/`Khảo sát` |
+| `status-line.tsx:136` `'rảnh'` → `'sẵn sàng'` | Cập nhật `tests/evidence-badge.test.ts:428` (đang khoá `'rảnh'`), giữ nguyên assert cấm `idle`/`running` |
+| `settings/appearance-tab.tsx:120-130` `aria-label="Chế độ steering"`, option `Steering: từng tin` → `Tin nhập thêm: gửi ngay` / `Tin chờ AI rảnh`; `:115` câu giải thích bỏ chữ "steering"/"follow-up" | Test mới: không còn chuỗi `steering`/`follow-up`/`Steering`/`Follow-up` trong `appearance-tab.tsx` |
+
+**Không đổi** `settings.steeringMode` / `followUpMode` (key store + `isQueueMode`
+trong `lib/message-queue.ts`) — đây là đổi copy, không đổi hợp đồng dữ liệu. Đổi
+key sẽ phải migrate dữ liệu đã lưu của người dùng, ngoài phạm vi đợt này.
+
+### Bước 3 — Ngữ cảnh vượt 100% phải nói rõ đang vượt trần
+
+| Việc | Cách chứng minh |
+|---|---|
+| `status-line.tsx:276` in `196k / 128k` không giải thích gì khi `percent > 100` | Test mới: khi `computeMeter(used > max)` thì chuỗi hiển thị phải kèm chữ `vượt trần`, và `title` phải nói rõ cần nén |
+| Giữ nguyên quyết định **không clamp percent** (`context-meter.tsx`, khoá bởi `tests/context-meter.test.ts:49`) | Test cũ vẫn xanh — chỉ thêm lớp hiển thị, không đổi số học |
+
+Quy ước chữ: `196k / 128k · vượt trần`. Màu đã là `error` nên không thêm màu mới.
+
+### Kết quả thi công (2026-10-12)
+
+| Bước | Đã sửa | File |
+|---|---|---|
+| 1 | `<Sep />` của workspace nhận `hidden lg:inline-flex`; `Sep` nhận thêm prop `className?: string` | `components/chat/status-line.tsx` |
+| 2 | Pill mode `Khảo sát`/`Thực hiện`, bỏ `uppercase tracking-[0.08em]`; `runLabel` `rảnh` → `sẵn sàng`; Settings bỏ "steering"/"follow-up", hai `aria-label` + option đổi sang tiếng Việt | `components/chat/status-line.tsx`, `components/settings/appearance-tab.tsx` |
+| 3 | Chuỗi ngữ cảnh kèm ` · vượt trần` khi `ratio > 1`; `title` phân nhánh, nói rõ cần bấm nút nén | `components/chat/status-line.tsx` |
+| Test | Mới `tests/status-line-copy.test.ts` (4 describe / 11 `it`); cập nhật `tests/evidence-badge.test.ts:428` (`rảnh` → `sẵn sàng`, và thêm `rảnh` vào danh sách CẤM) | — |
+
+**Không đổi** `settings.steeringMode` / `followUpMode` — đó là key store đã lưu
+(`lib/message-queue.ts`, `lib/store.ts:461`), đổi key phải migrate dữ liệu.
+
+### Đã kiểm chứng được / CHƯA kiểm chứng được
+
+- ✅ **82/82 assert pass** bằng cách chạy đúng logic của
+  `tests/status-line-copy.test.ts` qua một shim `expect`/`describe` tự viết
+  (vitest không cài được — xem dưới).
+- ✅ **Mutation test**: đảo ngược cả 5 lỗi (`<Sep />` bỏ `hidden`, nhãn về
+  `plan`/`act`, `runLabel` về `rảnh`, bỏ chữ `vượt trần`, `aria-label` về "Chế
+  độ steering") → **9 assert ĐỎ**. Không phải test xanh giả.
+- ❌ **CHƯA chạy được** `npm run typecheck`, `npm run lint`, `npx vitest run`:
+  sandbox không có mạng, `npm ci --offline` chết với `ENOTCACHED` (thiếu
+  `zwitch-2.0.4.tgz` trong cache), `node_modules` rỗng. Cú pháp file test đã
+  kiểm bằng `node --check` (hợp lệ), và mọi assert đã đối chiếu bằng tay, nhưng
+  **đó không thay được ba lệnh trên**. Cần chạy lại khi có mạng:
+  `npm ci --ignore-scripts` → `npm run typecheck` → `npm run lint` →
+  `npx vitest related components/chat/status-line.tsx components/settings/appearance-tab.tsx --run`.
+- ❌ **Chưa soi bằng mắt ở 375px**: con số ~62px cho pill trong comment là phép
+  ước, chưa đo DOM. Cần chụp lại `docs/design-qa/` ở 375 để xác nhận hàng trạng
+  thái không tràn ngang với nhãn mới dài hơn.
+
