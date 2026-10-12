@@ -101,7 +101,8 @@ export const TURN_STATUS_MEANING: Record<TurnStatus, string> = {
   completed: 'Agent đã dừng và báo hoàn tất — chưa nói kết quả đã được kiểm chứng.',
   blocked: 'Không tiếp tục được và đã nói rõ thiếu gì; cần đổi điều kiện rồi chạy lại.',
   failed: 'Đã thử và hỏng.',
-  cancelled: 'Mọi tool đã ngừng chạy; lượt đóng ở đây.',
+  cancelled:
+    'Mọi tool đã ngừng chạy và lượt đóng ở đây — kể cả khi bạn bấm Dừng, tải lại trang, hoặc đóng tab giữa chừng. Muốn tiếp tục thì gửi lại yêu cầu.',
 };
 
 let turnCounter = 0;
@@ -130,6 +131,13 @@ export function newTurnId(): string {
  *
  * Tin NGƯỜI DÙNG cũng để lượt mở: khi câu trả lời chưa kịp thành row, người
  * dùng gửi tiếp là đang điều chỉnh chính việc đó.
+ *
+ * Hệ quả đã biết (chưa đổi, xem `tests/turns.test.ts` "tin trả lời câu đang chờ
+ * quyền thuộc lượt cũ"): lượt bị tải lại trang để lại row `complete` + tool
+ * treo, nên dấu hiệu thứ hai giữ nó là lượt MỞ và tin người dùng kế tiếp nối
+ * vào lượt đó. `turnStatusOf` gọi cùng dữ kiện đó là `cancelled`, nên trong
+ * khoảng chờ trợ lý mới, header của lượt đang việc hiện "đã hủy". Tự sửa ở đây
+ * là đổi LUẬT RANH GIỚI lượt — cần chốt riêng, không gộp vào một bản vá lỗi.
  */
 export function isOpenTurnRow(row: TurnRow | null | undefined): boolean {
   if (!row) return false;
@@ -233,13 +241,14 @@ export interface TurnStatusOptions {
  *   1. `stopRequested` + còn tool chạy  → `stopping` (KHÔNG được nói "đã hủy"
  *      khi tiến trình còn đang ghi file — người dùng sẽ tin một trạng thái
  *      không có thật)
- *   2. còn tool chưa trả về             → `waiting_approval`
- *   3. trợ lý đang stream / chưa có gì  → `running`
- *   4. chưa có trợ lý nào               → `queued` (đã nhận, chưa xử lý)
- *   5. `blockedReason`                  → `blocked`
- *   6. lần thử cuối lỗi                 → `failed`
- *   7. lần thử cuối bị hủy              → `cancelled`
- *   8. còn lại                          → `completed`
+ *   2. còn tool chưa trả về, phiên còn sống   → `waiting_approval`
+ *   3. còn tool chưa trả về, phiên đã chết    → `cancelled`
+ *   4. trợ lý đang stream / chưa có gì  → `running`
+ *   5. chưa có trợ lý nào               → `queued` (đã nhận, chưa xử lý)
+ *   6. `blockedReason`                  → `blocked`
+ *   7. lần thử cuối lỗi                 → `failed`
+ *   8. lần thử cuối bị hủy              → `cancelled`
+ *   9. còn lại                          → `completed`
  *
  * "Xong" ở đây KHÔNG kèm dấu tick xanh nào: §15.5 chốt rằng xong chỉ nghĩa
  * agent đã dừng và báo hoàn tất, còn "đã xác minh" là trục BẰNG CHỨNG riêng.
@@ -251,13 +260,44 @@ export function turnStatusOf(
   if (rows.length === 0) return 'queued';
 
   const assistants = rows.filter((row) => row.role === 'assistant');
+
+  /*
+   * Phiên còn sống = ít nhất row trợ lý đang truy xuất. `streaming` là dấu hiệu
+   * đo được cho ca thật (lúc chờ duyệt, row vẫn `streaming` — xem
+   * `docs/design-qa/2026-10-07-turns/README.md` mục "Phát hiện kèm theo"), và
+   * `pending` là trợ lý chưa có kết luận.
+   *
+   * KHÔNG thêm `waiting_approval` vào đây dù nó là tên trạng thái hợp lệ: đó là
+   * trạng thái của LƯỢT (`TurnStatus`), không phải trường `status` của row —
+   * không có chỗ nào trong repo ghi giá trị đó lên message, nên thêm vào là điều
+   * kiện chết che một lỗi thật.
+   */
+  const isLive = rows.some(
+    (row) => row.status === 'streaming' || row.status === 'pending',
+  );
+
   const hasRunningTool = rows.some((row) =>
     (row.toolInvocations ?? []).some((inv) => (inv.state ?? '') !== 'result'),
   );
 
-  if (options.stopRequested && hasRunningTool) return 'stopping';
-  if (hasRunningTool) return 'waiting_approval';
-  if (rows.some((row) => row.status === 'streaming' || row.status === 'pending')) return 'running';
+  if (hasRunningTool) {
+    if (options.stopRequested) return 'stopping';
+    /*
+     * Còn tool treo mà KHÔNG còn row sống = lượt bị ngắt giữa chừng (F5, đóng
+     * tab, mất kết nối): tiến trình đã chết nên không có gì đang dừng nữa mà
+     * chờ. §15.5 cấm `stopping` đúng trường hợp này ("không dùng khi đã chắc
+     * chắn mọi tool đã ngừng") — nói "đang dừng" là hứa người dùng chờ một
+     * tiến trình không còn. `cancelled` là dòng khớp điều kiện dương của bảng:
+     * mọi tool đã ngừng, lượt đóng ở đây; và nó là trạng thái CUỐI nên header
+     * gập được, không treo nút Duyệt của một phiên đã chết.
+     *
+     * Tool cụ thể bị bỏ dở thì dòng gọi tool tự hiện "bị bỏ dở"
+     * (`components/chat/tool-trace.tsx`), nên nguyên nhân vẫn hiện được ở đúng
+     * chỗ của nó.
+     */
+    return isLive ? 'waiting_approval' : 'cancelled';
+  }
+  if (isLive) return 'running';
   if (assistants.length === 0) return 'queued';
   if (options.blockedReason) return 'blocked';
 

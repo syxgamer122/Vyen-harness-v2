@@ -346,7 +346,34 @@ export function sanitizeToolInvocations(
   if (!list?.length) return undefined;
   const cleaned: StoredToolInvocation[] = [];
   for (const inv of list) {
-    if (!inv || typeof inv.toolName !== 'string' || inv.state !== 'result') continue;
+    if (!inv || typeof inv.toolName !== 'string') continue;
+
+    /*
+     * Invocation CHƯA có kết quả: GIỮ NGUYÊN thay vì bỏ đi như trước.
+     *
+     * Trước đây nhánh này `continue` — xoá sạch. Hệ quả đo được
+     * (`docs/design-qa/2026-10-07-turns/README.md` + `DESIGN.md` §15.5): lượt
+     * đang `waiting_approval` mà bị F5 thì đường đọc không còn thấy tool nào
+     * chưa trả kết quả, nên `turnStatusOf` rơi xuống `completed` và UI nói
+     * "xong" trong khi người dùng chưa hề quyết định. §15.5 chốt "xong" nghĩa
+     * là agent đã dừng và BÁO HOÀN TẤT — hai chuyện khác hẳn.
+     *
+     * Vì sao GIỮ `state: 'call'` chứ không đổi thành `'result'` hay gắn cờ
+     * riêng: `state` là hợp đồng với model/route, đổi nó là nói dối ở nơi khác
+     * (route sẽ dựng một tool-result rỗng gửi lên model), còn thêm cờ riêng thì
+     * phải sửa mọi chỗ đọc. `state: 'call'` đã là sự thật đúng nhất: tool đã
+     * bắt đầu và CHƯA trả về.
+     *
+     * Ràng buộc bắt buộc đi kèm: mọi đường GỬI LÊN MODEL phải loại `state !==
+     * 'result'`. `attachToolResultParts` (route.ts) vốn đã lọc đúng vậy, nên
+     * không đường nào bị hở — nhưng đó là điều kiện sống còn của thay đổi này,
+     * và `tests/interrupted-turn-status.test.ts` canh nó.
+     */
+    if (inv.state !== 'result') {
+      cleaned.push({ ...inv, state: 'call' });
+      continue;
+    }
+
     let result = inv.result;
     try {
       /* Redact TRƯỚC khi cắt: cắt trước thì một khoá nằm vắt qua ranh giới cắt

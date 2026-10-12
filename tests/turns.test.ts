@@ -170,15 +170,22 @@ describe('lib/turns — trạng thái LƯỢT theo bảng §15.5, không gộp v
   });
 
   it('còn tool chưa trả kết quả → chờ bạn quyết định', () => {
-    expect(
-      turnStatusOf([user, { id: 'a1', role: 'assistant', toolInvocations: [{ state: 'call' }] }]),
-    ).toBe('waiting_approval');
+    /*
+     * `streaming` là dữ kiện đo được cho ca sống: lúc lượt dừng chờ quyền, row
+     * trợ lý vẫn ghi `streaming` (`docs/design-qa/2026-10-07-turns/README.md`).
+     *
+     * KHÔNG dùng `status:'waiting_approval'` ở đây: đó là `TurnStatus`, không
+     * phải trường `status` của row — không chỗ nào ghi giá trị đó lên message.
+     * Bản test trước viết bằng giá trị đó nên xanh với một đầu vào không bao
+     * giờ xảy ra, và nó giữ cho một nhánh điều kiện chết sống dai.
+     */
+    const live = { id: 'a1', role: 'assistant', status: 'streaming', toolInvocations: [{ state: 'call' }] };
+    expect(turnStatusOf([user, live])).toBe('waiting_approval');
   });
 
   it('Stop khi tool chưa ngừng → đang dừng, KHÔNG phải đã hủy', () => {
-    /* §15.1: "nếu UI báo đã hủy mà tiến trình vẫn đang ghi file thì người dùng
-       sẽ tin một trạng thái không có thật". */
-    const rows: TurnRow[] = [user, { id: 'a1', role: 'assistant', toolInvocations: [{ state: 'call' }] }];
+    const streaming = { id: 'a1', role: 'assistant', status: 'streaming', toolInvocations: [{ state: 'call' }] };
+    const rows: TurnRow[] = [user, streaming];
     expect(turnStatusOf(rows, { stopRequested: true })).toBe('stopping');
     expect(turnStatusOf(rows, { stopRequested: false })).toBe('waiting_approval');
   });

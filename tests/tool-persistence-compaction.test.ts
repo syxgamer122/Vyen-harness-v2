@@ -62,13 +62,14 @@ describe('toolInvocations sống sót qua Dexie', () => {
     expect((msg as { toolInvocations?: unknown }).toolInvocations).toBeUndefined();
   });
 
-  it('sanitize loại invocation chưa có kết quả (convert sẽ ném nếu giữ)', () => {
+  it('sanitize giữ invocation chưa có kết quả (chưa trả kết quả không bị xoá)', () => {
     const out = sanitizeToolInvocations([
       { toolCallId: 't1', toolName: 'fs_read', state: 'call' },
       { toolCallId: 't2', toolName: 'fs_list', state: 'result', result: [] },
     ]);
-    expect(out).toHaveLength(1);
-    expect(out![0].toolCallId).toBe('t2');
+    expect(out).toHaveLength(2);
+    expect(out![0].toolCallId).toBe('t1');
+    expect(out![1].toolCallId).toBe('t2');
   });
 
   it('kết quả khổng lồ bị cắt trước khi vào IndexedDB', () => {

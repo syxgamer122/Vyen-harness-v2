@@ -275,3 +275,55 @@ Quy ước chữ: `196k / 128k · vượt trần`. Màu đã là `error` nên kh
   ước, chưa đo DOM. Cần chụp lại `docs/design-qa/` ở 375 để xác nhận hàng trạng
   thái không tràn ngang với nhãn mới dài hơn.
 
+---
+
+## 10. Đợt "lượt bị ngắt không được nói là xong" — 2026-10-13
+
+Sửa nốt lỗi đo ở `docs/design-qa/2026-10-07-turns/`: tải lại trang giữa lúc
+lượt đang chờ quyền thì lượt đọc thành `xong`. Đây là hạng mục cuối của đợt 12/10,
+không thuộc P1–P5.
+
+### Bản sửa gốc (đã có trong cây, chưa commit)
+
+| File | Sửa |
+|---|---|
+| `lib/db.ts` `sanitizeToolInvocations` | invocation `state !== 'result'` **giữ nguyên** thay vì `continue` (xoá sạch) |
+| `lib/turns.ts` `turnStatusOf` | đọc `status` của row để tách "phiên còn sống" với "phiên đã chết" |
+
+Ràng buộc sống còn: mọi đường gửi model phải loại invocation chưa có kết quả.
+**Đã truy đủ 3 tầng**, không chỉ tầng mà test soi:
+`attachToolResultParts` (`route.ts:996`) chỉ dựng `parts` từ `state:'result'`;
+`normalizeMessageToolInvocations` (`route.ts:1476`/`:1482`) gắn kết quả tổng hợp
+cho phần còn lại trước `convertToCoreMessages`; zod schema (`:710`) nhận
+`state:'call'` không kết quả. `lib/context-compaction.ts` và `lib/context-budget.ts`
+đều xử lý được invocation treo, không ném lỗi.
+
+### Việc làm thêm ở đợt này
+
+| Việc | Chứng minh |
+|---|---|
+| Lượt bị ngắt → **`cancelled`**, không phải `stopping` | §15.5 cấm `stopping` khi "đã chắc chắn mọi tool đã ngừng"; sau tải lại trang thì chắc chắn đã ngừng. `cancelled` khớp điều kiện dương của bảng và là trạng thái cuối (gập được) |
+| Xoá điều kiện chết `row.status === 'waiting_approval'` | đó là `TurnStatus`, không phải `status` của row; grep không có chỗ nào ghi giá trị đó lên message |
+| `TURN_STATUS_MEANING.cancelled` nói rõ cả hai nguyên nhân | lượt đóng vì bấm Dừng, tải lại trang, hay đóng tab — và phải gửi lại yêu cầu |
+| `tests/turns.test.ts` viết bằng tín hiệu sống thật (`streaming`) | bản cũ dùng `status:'waiting_approval'` nên xanh với đầu vào không bao giờ xảy ra, và giữ một nhánh điều kiện chết sống dai |
+| `DESIGN.md` §15.5: "lỗ đã biết, chưa sửa" → đã sửa + ghi luật mới | spec đọc sai thì lần sau sửa tiếp theo nhầm lần nữa |
+| `isOpenTurnRow` **giữ nguyên**, chỉ ghi rõ hệ quả bằng comment | thử bỏ dấu hiệu "tool treo" thì test `turns.test.ts:103` đỏ — luật này có chủ đích, không sửa trong một bản vá lỗi |
+
+### Kết quả
+
+- ✅ 13 file test liên quan: **327/327 pass** (chạy sau khi hoàn tất sửa).
+- ✅ **Mutation test**: đảo `return isLive ? 'waiting_approval' : 'cancelled'` thành
+  `return 'waiting_approval'` → **2 assert ĐỎ** đúng dòng. Không phải test rỗng.
+- ⚠️ `npm run typecheck` và `npm run lint` **chạy được và XANH trước khi sửa**
+  (typecheck exit 0; lint 0 lỗi / 8 warning). **Sau khi sửa thì chưa chạy lại
+  được** — máy bị swap nặng và `tsc` treo >10 phút. Chạy lại trước khi commit.
+
+### Còn lại, cần chốt riêng (không gộp vào bản vá lỗi)
+
+- **`isOpenTurnRow` giữ lượt mở khi row `complete` + tool treo.** Sau tải lại
+  trang, tin người dùng kế tiếp nối vào lượt đang ghi "đã hủy" cho tới khi trợ lý
+  mới chạy. Sửa là **đổi luật ranh giới lượt** (luật này có test riêng và comment
+  biện minh), không phải sửa lỗi — cần một đợt riêng.
+- **Chưa soi bằng mắt**: mở app, vào một lượt đang chờ quyền, F5, xác nhận header
+  hiện "đã hủy" và dòng tool hiện "bị bỏ dở".
+

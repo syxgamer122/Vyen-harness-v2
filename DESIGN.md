@@ -1577,16 +1577,26 @@ dưới là bản chốt.
 `stopping` chỉ có ở lượt; tool trong lúc đó giữ `đang chạy` cho tới khi thoát, rồi
 chuyển `bị bỏ dở` (hoặc `lỗi` nếu chính nó hỏng).
 
-> **Lỗ đã biết (đo được 2026-10-07, chưa sửa):** tải lại trang làm lượt đang
-> `chờ bạn quyết định` biến thành `xong`. `sanitizeToolInvocations` (`lib/db.ts`)
-> **cố ý** bỏ mọi invocation chưa có `result` (pending không tái tạo được part hợp
-> lệ), nên khi app ghi lại row đang `streaming` sau khi nạp, dấu vết "đang chờ
-> quyền" biến mất và `turnStatusOf` chỉ còn thấy một row trợ lý đã xong. Đo trong
-> `docs/design-qa/2026-10-07-turns/`: row `a3` đi từ `tools 1 / streaming` sang
-> `tools 0 / complete`. Muốn đúng §15.5 thì lượt bị ngắt giữa chừng phải để lại
-> **một dấu vết lưu trữ** (trạng thái `blocked`/`cancelled` hoặc cờ "chờ quyền") —
-> đừng suy từ việc "row còn `streaming` hay không", vì chính việc ghi lại đã xoá
-> dấu hiệu đó.
+> **Đã sửa (2026-10-13).** Nguyên nhân gốc là `sanitizeToolInvocations`
+> (`lib/db.ts`) **xoá sạch** mọi invocation chưa có `result` khi ghi row, nên
+> dấu vết "đang chờ" biến mất khỏi DB và `turnStatusOf` chỉ còn thấy một row
+> trợ lý đã xong. Nay invocation `state:'call'` được **giữ nguyên** — đó là sự
+> thật đúng nhất (tool đã bắt đầu và chưa trả về); việc dựng `parts` gửi lên
+> model vẫn do `attachToolResultParts` (`route.ts`) lọc, và
+> `normalizeMessageToolInvocations` vá nốt trước `convertToCoreMessages`, nên
+> model không bao giờ thấy tool-call không kết quả.
+>
+> Để phân biệt hai ca, `turnStatusOf` đọc `status` của row:
+>   - còn row `streaming` → phiên còn sống → `waiting_approval`;
+>   - hết row sống → **phiên đã chết** → `cancelled`, KHÔNG phải `stopping`.
+>
+> Vì sao không `stopping`: bảng §15.5 cấm nó đúng ca này ("không dùng khi đã
+> chắc chắn mọi tool đã ngừng") — sau khi tải lại trang thì tiến trình đã chết
+> hẳn, không có gì đang dừng mà chờ, và nhãn "đang dừng" sẽ hứa người dùng một
+> tiến trình không còn tồn tại. `cancelled` khớp điều kiện dương của bảng và là
+> trạng thái cuối nên lượt gập được. Tool cụ thể bị bỏ dở vẫn hiện đúng chữ
+> **"bị bỏ dở"** ở dòng gọi tool (`components/chat/tool-trace.tsx`), nên nguyên
+> nhân không mất đi.
 
 **Bằng chứng** — sáu bậc đã có ở `lib/evidence.ts`, nhãn badge là copy của
 `describeEvidence`; chốt dùng đúng nhãn đó, không tự đặt tên khác: `Kế hoạch · chưa
