@@ -168,6 +168,56 @@ describe('status line — ngữ cảnh vượt trần phải nói được', () 
   });
 });
 
+describe('status line — cụm hành động chat chỉ hiện khi chat có tin nhắn', () => {
+  /**
+   * Nén và Xoá đã có `hasMessages` từ trước, riêng Xuất thì không: nên ở chat
+   * rỗng người dùng bấm được một nút xuất ra một file rỗng. Ba hành động này
+   * cùng một điều kiện vì cùng một lý do — hội thoại rỗng thì không có gì để
+   * nén, không có gì để xoá, không có gì để xuất.
+   *
+   * Bảng dưới liệt kê từng hành động với điều kiện phải có, viết tay từ mã
+   * đang chạy chứ không suy ra từ mã nguồn.
+   */
+  const GUARDED: Array<[string, RegExp]> = [
+    ['Xuất', /\{hasMessages\s*&&\s*\(?\s*<ChatExportMenu\b[^>]*\/>\s*\)?\s*\}/],
+    ['Nén', /\{hasMessages\s*&&\s*\(?\s*canCompact/],
+    ['Xoá', /\{hasMessages\s*&&\s*\(?\s*\(confirmClear/],
+  ];
+
+  /**
+   * ĐỎ khen: bỏ `<ChatExportMenu chatId={currentChatId} />` ra khỏi
+   * `{hasMessages && ...}` — đúng trạng thái trước bản vá này.
+   */
+  it('cả ba hành động header cùng chịu hasMessages', () => {
+    const code = stripComments(read(STATUS_LINE));
+    for (const [ten, re] of GUARDED) {
+      expect(code, `hành động "${ten}" không nằm trong \`{{hasMessages && ...}}\``).toMatch(re);
+    }
+  });
+
+  /**
+   * ĐỎ khen: `ChatExportMenu` phải còn nằm trong cụm nút phải của header —
+   * không phải ai đó dựng lại nó ở chỗ khác cho "hợp bố cục" rồi quên điều
+   * kiện. Mốc ở đây là nó nằm SAU `ThinkingMenu` (cùng cụm) và TRƯỚC nút Nén.
+   * Mốc nút Nén là `onClick={onCompact}` chứ không phải `canCompact`: tên prop
+   * xuất hiện hai lần (destructure + điều kiện render) nên so vị trí sẽ đo nhầm.
+   */
+  it('ChatExportMenu vẫn nằm trong cụm nút phải của header', () => {
+    const code = stripComments(read(STATUS_LINE));
+    const i = code.indexOf('<ChatExportMenu');
+    expect(i, 'không tìm thấy <ChatExportMenu> trong status line').toBeGreaterThan(-1);
+    /* Cả hai mốc đều phải tồn tại TRƯỚC khi so vị trí: `indexOf` trả -1 khi
+       không thấy, mà -1 lại nhỏ hơn mọi chỉ số — so thẳng sẽ xanh khi cái
+       cần tìm đã bị xoá hoặc đổi tên. */
+    const thinking = code.indexOf('<ThinkingMenu');
+    expect(thinking, 'không tìm thấy <ThinkingMenu> — mốc đã đổi').toBeGreaterThan(-1);
+    expect(thinking).toBeLessThan(i);
+    const compact = code.indexOf('onClick={onCompact}');
+    expect(compact, 'không tìm thấy nút Nén — mốc đã đổi').toBeGreaterThan(-1);
+    expect(compact).toBeGreaterThan(i);
+  });
+});
+
 describe('settings — tab Giao diện không dùng thuật ngữ tiếng Anh', () => {
   /**
    * ĐỎ khi: trả lại `steering` / `follow-up` trong copy hiển thị. Hai từ đó là

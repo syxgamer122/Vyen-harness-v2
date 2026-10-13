@@ -332,7 +332,7 @@ export function SchedulerPanel() {
               {!canKillSwitch
                 ? 'Scheduler không có trong bản này'
                 : killSwitch === null
-                  ? 'Scheduler: KHÔNG ĐỌC ĐƯỢC trạng thái'
+                  ? 'Chưa xác định được trạng thái Scheduler'
                   : killSwitch
                     ? 'Scheduler đang tạm dừng'
                     : 'Scheduler đang hoạt động'}
@@ -342,7 +342,7 @@ export function SchedulerPanel() {
             {!canKillSwitch
               ? 'Cron và kill-switch do tiến trình scheduler trong Vyen desktop đảm nhiệm. Không có tiến trình đó thì không có gì để dừng và không có lịch nào chạy.'
               : killSwitch === null
-                ? 'Bridge không có lệnh đọc trạng thái kill-switch, nên lần mở Cài đặt này Vyen không biết scheduler đang chạy hay đã bị dừng từ trước. Bấm "Dừng khẩn cấp" để chắc chắn không lịch nào chạy.'
+                ? 'Không đọc được trạng thái Scheduler của tiến trình chạy nền, nên không biết lịch đang chạy hay đã dừng từ trước. Bấm "Dừng khẩn cấp" để chắc chắn không lịch nào chạy.'
                 : killSwitch
                   ? 'Không lịch nào chạy, kể cả Run now. Bật lại để tiếp tục cron.'
                   : 'Có thể dừng khẩn cấp mọi lịch khi nghi một job đang chạy lỗi.'}
@@ -371,7 +371,7 @@ export function SchedulerPanel() {
                 setKillSwitchBusy(false);
               }
             }}
-            className={`btn-secondary flex-shrink-0 ${killSwitch === true ? '' : 'border-danger text-danger'}`}
+            className={`btn-secondary flex-shrink-0 ${killSwitch === false ? 'border-danger text-danger' : ''}`}
           >
             {killSwitchBusy ? (
               <Loader2 size={13} className="animate-spin" />

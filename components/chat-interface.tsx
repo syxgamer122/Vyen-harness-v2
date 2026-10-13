@@ -3,6 +3,7 @@
 import { ApprovalQueue } from '@/lib/approval-queue';
 import { useAgentRuntime } from '@/react/use-agent-runtime';
 import { useApprovalBridge } from '@/react/use-approval-bridge';
+import { useAppStore } from '@/lib/store';
 import { useChatOrchestration } from '@/react/use-chat-orchestration';
 
 import { StatusLine } from '@/components/chat/status-line';
@@ -77,7 +78,7 @@ export default function ChatInterface() {
       {!isLeader && (
         <div
           data-testid="observer-banner"
-          className="flex items-center justify-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-1.5 text-center font-sans text-xs text-primary"
+          className="flex items-center justify-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2 text-center font-sans text-xs text-primary"
         >
           <span>
             {isAcquiring
@@ -91,10 +92,24 @@ export default function ChatInterface() {
            * đậm. Cặp cũ `text-warning` trên `bg-warning/20` chỉ đạt 3.50:1 ở
            * cỡ 10px, dưới ngưỡng 4.5:1 của WCAG AA cho chữ thường.
            */}
+          {/*
+           * Vùng chạm: 14px × 1.5 + `py-1` = 29px, `after:-inset-2` nới mỗi bên
+           * 8px ⇒ 45px, qua ngưỡng 44px (WCAG 2.5.5 / HIG). Trước đây là
+           * `text-micro` + `py-0.5` không nới: 18px, tức nhỏ hơn con trỏ chuột.
+           *
+           * Nới 8px đúng bằng `gap-2` của băng nên không tràn sang chữ bên cạnh.
+           * Cùng kỹ thuật với nút icon ở `composer.tsx` và `branch-switcher.tsx`.
+           *
+           * VÌ SAO BĂNG PHẢI `py-2` KHÔNG PHẢI `py-1.5`: băng là con đầu của
+           * `overflow-hidden`, nên phần nới 8px mà padding chỉ 6px thì nhô ra
+           * khỏi mép trên 2px và bị cắt. Vùng bấm thật còn ~43px, tức lọt dưới
+           * ngưỡng trong khi phép tính trên vẫn ra 45. Test
+           * `observer-banner-affordance.test.ts` khoá đúng cặp này.
+           */}
           <button
             type="button"
             onClick={forceStealLock}
-            className="rounded-sm bg-warning px-2 py-0.5 text-micro font-semibold text-on-fill transition-transform active:scale-[0.98]"
+            className="relative rounded-sm bg-warning px-2 py-1 text-ui font-semibold text-on-fill after:absolute after:-inset-2 after:content-[''] transition-transform active:scale-[0.98]"
           >
             Chiếm quyền điều khiển
           </button>
@@ -175,6 +190,8 @@ export default function ChatInterface() {
           onSaveEdit={orch.saveEdit}
           onDraftChange={orch.setDraft}
           onSelectSuggestion={orch.onSelectSuggestion}
+          hasModels={orch.MODELS.length > 0}
+          onAddProvider={() => useAppStore.getState().openSettings('providers')}
           onReload={() =>
             orch.lastMessageId && orch.handleRegenerate(orch.lastMessageId)}
           onContinueGenerating={orch.continueGenerating}

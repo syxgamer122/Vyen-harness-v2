@@ -212,6 +212,39 @@ export function stagedFilesChip(count: number): StagedFilesChip | null {
   };
 }
 
+/**
+ * Dòng gợi ý phím dưới ô nhập: cặp nhãn ngắn (in ra) và dài (tooltip).
+ *
+ * Cả hai phải nói phím nào THỰC SỰ gửi tin ở đúng thiết bị đang dùng. Trước đây
+ * dòng này chỉ phụ thuộc `sendOnEnter`, nên trên thiết bị cảm ứng nó in "Enter
+ * để gửi" trong khi `handleKeyDown` không gửi khi `isTouchDevice` — người dùng
+ * đọc đúng dòng đó, gõ Enter, tin không đi đâu.
+ *
+ * Nhánh cảm ứng không hứa phím gửi nào vì trong ô nhập không có phím nào gửi
+ * được: Enter xuống dòng, `Alt+Enter` cũng bị chặn ở trong `handleKeyDown`. Nó
+ * chỉ sang nút gửi — nút tròn chỉ có mũi tên lên, không in chữ — nên gọi tên nó
+ * là `nút ↑`, không phải "nút Gửi" (người dùng nhìn sẽ đi tìm một cái nhãn
+ * không tồn tại). Đường ra đó có thật trên cả điện thoại lẫn máy tính bảng có
+ * bàn phím, vì cả hai đều là `pointer: coarse`.
+ */
+export function keyHints(sendOnEnter: boolean, isTouchDevice: boolean): { short: string; long: string } {
+  if (isTouchDevice) {
+    return {
+      short: 'Enter xuống dòng · gửi tin bằng nút ↑',
+      long: 'Enter xuống dòng · gửi tin bằng nút ↑ · thiết bị cảm ứng không có phím tắt gửi tin',
+    };
+  }
+  return sendOnEnter
+    ? {
+        short: 'Enter để gửi · Shift+Enter xuống dòng',
+        long: 'Enter để gửi · Shift+Enter xuống dòng · khi AI chạy: Enter = điều chỉnh việc đang làm, Alt+Enter = việc mới · Alt+↑ lấy lại · / lệnh nhanh',
+      }
+    : {
+        short: 'Enter xuống dòng · Alt+Enter gửi tin',
+        long: 'Enter xuống dòng · Alt+Enter gửi tin hoặc giao việc mới · Alt+↑ lấy lại · / lệnh nhanh',
+      };
+}
+
 export interface WorkspaceScopeChip {
   /** Nhãn trên chip: nói PHẠM VI đang dùng, không phải tên nút bấm. */
   label: string;
@@ -822,6 +855,10 @@ export const Composer = memo(function Composer({
   );
 
   const slashHiddenLine = hiddenSlashLine(slashHiddenCount);
+
+  /* Dòng gợi ý phím: một nguồn cho cả bản ngắn lẫn bản trong tooltip, và nó
+     biết cả `sendOnEnter` lẫn `isTouchDevice` — xem `keyHints`. */
+  const hints = keyHints(sendOnEnter, isTouchDevice);
 
   const slashOpen =
     slashQuery !== null && !slashDismissed && slashMatches.length > 0;
@@ -1692,16 +1729,13 @@ export const Composer = memo(function Composer({
            * tình huống ("khi AI đang chạy") chỉ hữu ích đúng lúc đó, mà lúc đó
            * người dùng đang nhìn vào lượt chạy chứ không vào dòng gợi ý này.
            * `title` giữ nguyên phần đó nên vẫn tìm được khi rê chuột.
+           *
+           * Cả cặp nhãn lấy từ `keyHints` — trong đó còn có NHÁNH CẢM ỨNG, mà
+           * `sendOnEnter` không nói được: Enter không gửi khi `isTouchDevice`.
+           * Sửa câu ở đây thì sửa ở `keyHints`, và ngược lại.
            */}
-          <div
-            className="mt-3 hidden text-center font-sans text-meta text-tertiary sm:block"
-            title={
-              sendOnEnter
-                ? 'Enter để gửi · Shift+Enter xuống dòng · khi AI chạy: Enter = điều chỉnh việc đang làm, Alt+Enter = việc mới · Alt+↑ lấy lại · / lệnh nhanh'
-                : 'Enter xuống dòng · Alt+Enter gửi tin hoặc giao việc mới · Alt+↑ lấy lại · / lệnh nhanh'
-            }
-          >
-            {sendOnEnter ? 'Enter để gửi · Shift+Enter xuống dòng' : 'Enter xuống dòng · Alt+Enter gửi tin'}
+          <div className="mt-3 hidden text-center font-sans text-meta text-tertiary sm:block" title={hints.long}>
+            {hints.short}
           </div>
         </div>
       </div>

@@ -314,7 +314,7 @@ export const StatusLine = memo(function StatusLine({
               className="flex min-w-0 flex-none items-center gap-1.5"
               title={
                 meter.ratio > 1
-                  ? `Ngữ cảnh ${fmt(ctxUsed!)} / ${fmt(meter.safeMax)} token (${meter.percent}%) — ĐÃ VƯỢT TRẦN model. Phần đầu hội thoại có nguy cơ bị cắt; bấm nút nén ở bên phải để gộp phần cũ thành tóm tắt.`
+                  ? `Ngữ cảnh ${fmt(ctxUsed!)} / ${fmt(meter.safeMax)} token (${meter.percent}%): ĐÃ VƯỢT TRẦN model. Phần đầu hội thoại có nguy cơ bị cắt; bấm nút nén ở bên phải để gộp phần cũ thành tóm tắt.`
                   : `Ngữ cảnh: ${fmt(ctxUsed!)} / ${fmt(meter.safeMax)} token (${meter.percent}%)`
               }
             >
@@ -360,7 +360,9 @@ export const StatusLine = memo(function StatusLine({
           />
         )}
 
-        <ChatExportMenu chatId={currentChatId} />
+        {/* Xuất cùng điều kiện với Nén và Xoá: hội thoại rỗng thì không có gì
+            để xuất, và bấm được xuất ra chỉ là một file rỗng. */}
+        {hasMessages && <ChatExportMenu chatId={currentChatId} />}
 
         {hasMessages && canCompact && onCompact && (
           <button

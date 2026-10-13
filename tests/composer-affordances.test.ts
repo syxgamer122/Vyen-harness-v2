@@ -26,6 +26,7 @@ import {
   resolveApprovalPolicy,
   stagedFilesChip,
   workspaceScopeChip,
+  keyHints,
   COMPOSER_FOCUS_PAD,
   SLASH_PALETTE_LIMIT,
   type SlashPrompt,
@@ -255,6 +256,92 @@ describe('L9 — không còn hướng dẫn phím trỏ tới phím không tồn
     }
   });
 });
+
+describe('L23 — dòng gợi ý phím nói đúng phím nào THỰC SỰ gửi tin ở thiết bị này', () => {
+  /**
+   * Trước đợt này dòng gợi ý chỉ phụ thuộc `sendOnEnter`, nên trên thiết bị cảm
+   * ứng nó in "Enter để gửi" trong khi `handleKeyDown` KHÔNG gửi khi
+   * `isTouchDevice` (`composer.tsx:994`). Người dùng đọc đúng dòng đó rồi gõ
+   * Enter và tin không đi đâu — nói dối về chính phím tắt của composer.
+   *
+   * Luật: trên cảm ứng KHÔNG còn đường bàn phím nào gửi được (Enter xuống
+   * dòng, Alt+Enter cũng bị chặn ở `:980`), nên dòng gỏi phải chỉ sang nút Gửi
+   * chứ không hứa một phím không tồn tại. Máy tính bảng có bàn phím rơi vào
+   * cùng nhánh, vì `isTouchDevice` là `(pointer: coarse)`.
+   *
+   * `want` viết tay từ hành vi đọc trong `handleKeyDown`, không suy ra từ
+   * hàm đang gọi.
+   */
+  const CASES: Array<{ sendOnEnter: boolean; isTouch: boolean; want: string }> = [
+    { sendOnEnter: true, isTouch: false, want: 'Enter để gửi · Shift+Enter xuống dòng' },
+    { sendOnEnter: false, isTouch: false, want: 'Enter xuống dòng · Alt+Enter gửi tin' },
+    { sendOnEnter: true, isTouch: true, want: 'Enter xuống dòng · gửi tin bằng nút ↑' },
+    { sendOnEnter: false, isTouch: true, want: 'Enter xuống dòng · gửi tin bằng nút ↑' },
+  ];
+
+  it('dòng ngắn đúng với từng tổ hợp', () => {
+    for (const c of CASES) {
+      expect(keyHints(c.sendOnEnter, c.isTouch).short, `short(sendOnEnter=${c.sendOnEnter}, isTouch=${c.isTouch})`).toBe(c.want);
+    }
+  });
+
+  /**
+   * ĐỎ khen: trên cảm ứng không được hứa phím gửi nào. ĐỎ khi ai đó sửa nhánh
+   * cảm ứng thành "Enter để gửi" hoặc thêm `Alt+Enter` vào đó.
+   */
+  it('cảm ứng không hứa phím gửi nào, kể cả bản dài', () => {
+    for (const sendOnEnter of [true, false]) {
+      const h = keyHints(sendOnEnter, true);
+      for (const ban of ['Enter để gửi', 'Alt+Enter', 'Shift+Enter']) {
+        expect(h.short, `short còn "${ban}"`).not.toContain(ban);
+        expect(h.long, `long còn "${ban}"`).not.toContain(ban);
+      }
+      /* Phải chỉ đúng thứ người dùng NHÌN thấy: nút gửi là nút tròn chỉ có mũi
+         tên lên, không có chữ "Gửi" in ra. Gọi nó là "nút Gửi" là dẫn người
+         dùng đi tìm một cái nhãn không tồn tại trên màn hình. */
+      expect(h.short).toContain('nút ↑');
+      expect(h.long).toContain('nút ↑');
+    }
+  });
+
+  /**
+   * ĐỎ khen: bàn phím thì phải nói đủ phím, kể cả các phím tình huống chỉ hữu
+   * ích lúc AI đang chạy (chúng sống trong `title`, dòng ngắn thì không đủ chỗ).
+   */
+  it('bàn phím vẫn nói đủ Enter và Alt+Enter', () => {
+    expect(keyHints(true, false).long).toContain('Alt+Enter = việc mới');
+    expect(keyHints(false, false).long).toContain('Alt+Enter gửi tin hoặc giao việc mới');
+  });
+
+  /**
+   * Bịt lỗ hổng một chiều của cả khối: `keyHints` đúng là được suy ra TỪ
+   * `handleKeyDown`, nhưng không có gì khoá chiều kia. Bỏ `!isTouchDevice` khỏi
+   * nhánh Enter (tức cho phép Enter gửi tin trên cảm ứng) thì cả bốn assert
+   * trên vẫn xanh, trong khi dòng gợi ý lại thành nói dối — đúng lỗi mà
+   * `keyHints` sinh ra để chữa.
+   *
+   * ĐỎ khen: assert này đỏ.
+   */
+  it('handleKeyDown không cho phép Enter gửi tin khi isTouchDevice', () => {
+    expect(code).toMatch(
+      /if \(e\.key === 'Enter' && !e\.shiftKey && !isTouchDevice && sendOnEnter\)/,
+    );
+    /* Alt+Enter cũng phải bị chặn, vì dòng gỏi cảm ứng không hứa phím nào. */
+    expect(code).toMatch(/if \(e\.key === 'Enter' && e\.altKey && !isTouchDevice\)/);
+  });
+
+  /**
+   * Lớp 2: dòng JSX phải lấy từ hàm, không in chuỗi cứng. ĐỎ khi ai đó viết
+   * lại `{sendOnEnter ? '…' : '…'}` — hàm vẫn còn, hàm vẫn đúng, lỗi quay lại.
+   */
+  it('JSX lấy nhãn từ keyHints, không tự in chuỗi', () => {
+    expect(code).toContain('keyHints(');
+    expect(code, 'title phải lấy bản dài từ keyHints').toMatch(/title=\{hints\.long\}/);
+    expect(code, 'dòng hiển thị phải lấy bản ngắn từ keyHints').toMatch(/\{hints\.short\}/);
+    expect(code, 'còn in "Enter để gửi" bằng chuỗi cứng').not.toMatch(/sendOnEnter \? 'Enter để gửi/);
+  });
+});
+
 
 describe('L10 — pill phê duyệt không nói ngược hành vi', () => {
   it('"Autonomous Tools Active" không còn trong composer', () => {
