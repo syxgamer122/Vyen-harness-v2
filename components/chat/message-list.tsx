@@ -82,6 +82,23 @@ export function getWidthBucket(width?: number): number {
   return Math.round(width / 50) * 50;
 }
 
+/**
+ * Có hiện nút "cuộn xuống tin nhắn mới nhất" không.
+ *
+ * `isAtBottom` là cờ DÙNG CHUNG cho cả phiên: nó chỉ được set lại trong
+ * `setStick` của `useStickToBottom`, mà mọi đường ghim đều cần có tin nhắn. Màn
+ * trống không có gì để ghim nên không có scroll event nào set lại cờ — cuộn lên
+ * giữa một chat dài rồi bấm sang chat mới là cờ `false` mang sang màn trống, và
+ * nút hiện lên trên màn hình không có gì để cuộn tới.
+ *
+ * Vì vậy điều kiện phải hỏi TIN NHẮN, không hỏi cờ. Không reset cờ: grep xác
+ * nhận nó chỉ có một chỗ tiêu thụ chính là chỗ render nút này, nên chặn ở đây
+ * là hết.
+ */
+export function showJumpToLatest(hasMessages: boolean, isAtBottom: boolean): boolean {
+  return hasMessages && !isAtBottom;
+}
+
 /** Cache chiều cao thật theo chatId:messageId:widthBucket — sống qua unmount/đổi chat. */
 const HEIGHT_CACHE = new LruCache<string, number>(2000);
 const cacheKey = (chatId: string, id: string, widthBucket: number) =>
@@ -954,7 +971,7 @@ export const MessageList = memo(function MessageList({
           )}
         </div>
 
-        {!isAtBottom && (
+        {showJumpToLatest(hasMessages, isAtBottom) && (
           <button
             type="button"
             onClick={onScrollToBottom}

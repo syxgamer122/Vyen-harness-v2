@@ -46,7 +46,28 @@ const HEX_MAP: Record<string, string> = Object.fromEntries(
     /^\s*'?([\w-]+)'?:\s*'(#[0-9a-fA-F]{6})'/gm,
   )].map((m) => [m[1]!, m[2]!.toLowerCase()]),
 );
-expect(Object.keys(HEX_MAP).length, 'không đọc được bảng `hex` trong tailwind.config.ts').toBe(25);
+/*
+ * ĐẾN ĐÂY CHỈ CẦN CHỨNG MINH BẢNG ĐỌC ĐƯỢC, KHÔNG CẦN ĐẾM.
+ *
+ * Bảng `hex` có 29 key nhưng chỉ 25 màu: `surface`/`overlay`/`on-fill` cùng
+ * `#ffffff`, `secondary`/`diff-ctx` cùng `#575757`, `danger`/`diff-del` cùng
+ * `#b3261e`. Trước đây assert này đếm key nên đỏ với 29 ≠ 25 — và vì nó đứng
+ * ở cấp FILE nên hỏng cả suite, tức là phần khoá "băng quan sát không phải
+ * ngõi cụt" và "tương phản WCAG" bên dưới không chạy lấy một assert.
+ *
+ * HỢP ĐỒNG BẢNG MÀU THUỘC VỀ `tests/design-system.test.ts`: ở đó bảng §2 được
+ * khoá hai chiều (mọi hex trong config phải có mặt trong test và ngược lại), và
+ * thêm một màu mới làm test đó đỏ — đã kiểm bằng mutation: "bảng màu trong test
+ * khớp tailwind.config.ts theo cả hai chiều". Chép lại con số ở đây chỉ để
+ * "bảng màu đổi thì đỏ", tức biến một bảo hiểm đã có ở nơi khác thành quả bom
+ * cấp file. Ở đây chỉ cần biết regex còn khớp; token nào thiếu thì `token()`
+ * báo đúng tên ngay.
+ */
+const DISTINCT_COLORS = new Set(Object.values(HEX_MAP));
+expect(
+  DISTINCT_COLORS.size,
+  'không đọc được bảng `hex` trong tailwind.config.ts — regex chắc đã hỏng',
+).toBeGreaterThan(0);
 
 /** Nền sâu nhất bên dưới băng: `<body className="… bg-sunken …">`. */
 const BODY_BG = read('app/layout.tsx').match(/<body[^>]*\bbg-([a-z-]+)\b/)?.[1];
@@ -216,5 +237,102 @@ describe('băng quan sát — tương phản WCAG AA', () => {
         `text-warning trên bg-warning/${alpha * 100} đạt ${value.toFixed(2)}:1 — lúc đó dùng lại được`,
       ).toBeLessThan(AA_NORMAL);
     }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 3. Vùng chạm                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Thang cỡ chữ đọc từ chính `tailwind.config.ts` — nếu ai đó đổi px thì số
+ * tính ở dưới tự đổi theo, không chép số cứng vào comment.
+ */
+const FONT_SCALE = Object.fromEntries(
+  [...CONFIG.matchAll(
+    /(micro|meta|body|ui|read|head):\s*\['(\d+(?:\.\d+)?)px',\s*\{\s*lineHeight:\s*'([\d.]+)'\s*\}/g,
+  )].map((m) => [m[1]!, { px: Number(m[2]), lh: Number(m[3]) }]),
+);
+expect(Object.keys(FONT_SCALE).length, 'không đọc được thang fontSize trong tailwind.config.ts').toBe(6);
+
+/** Tailwind: 1 đơn vị spacing = 0.25rem, gốc 16px ⇒ 4px. */
+const UNIT_PX = 4;
+
+describe('băng quan sát — nút chiếm quyền phải bấm được bằng tay', () => {
+  /**
+   * Vùng chạm = chiều cao khung chữ + padding, CỘNG phần nới bằng `after:-inset`
+   * (lớp trong suốt phủ quanh nút, đúng cách `composer.tsx` và `branch-switcher.tsx`
+   * làm cho nút icon). Yêu cầu: 44px — ngưỡng WCAG 2.5.5 và HIG của Apple, dùng
+   * vì nút này chỉ xuất hiện ở tình huống người dùng đang bị chặn gõ.
+   *
+   * Trước bản vá này: `text-micro` + `py-0.5`, không `after:` ⇒ 18px.
+   */
+  it('vùng chạm đủ 44px kể cả phần nới bằng after:', () => {
+    const sizeKey = BUTTON_CLASS.match(/\btext-(micro|meta|body|ui|read|head)\b/)?.[1];
+    expect(sizeKey, 'không tìm thấy cỡ chữ của nút — thang đã đổi').toBeTruthy();
+    const { px, lh } = FONT_SCALE[sizeKey!]!;
+
+    const padY = Number(BUTTON_CLASS.match(/\bpy-([\d.]+)\b/)?.[1] ?? Number.NaN);
+    expect(Number.isFinite(padY), 'không đọc được padding dọc của nút').toBe(true);
+
+    /* `after:-inset-[6px]` (px) hoặc `after:-inset-2` (spacing). */
+    const insetRaw = BUTTON_CLASS.match(/after:-inset-\[(\d+(?:\.\d+)?)px\]/)?.[1];
+    const insetUnit = BUTTON_CLASS.match(/after:-inset-(\d+(?:\.\d+)?)\b/)?.[1];
+    const insetPx = insetRaw !== undefined ? Number(insetRaw) : Number(insetUnit ?? 0) * UNIT_PX;
+    expect(
+      BUTTON_CLASS,
+      'nút không nới vùng chạm bằng after: — khung nhìn thấy nhỏ hơn hẳn vùng bấm',
+    ).toMatch(/after:-inset-/);
+    /*
+     * `after:` mà thiếu `content-['']` thì KHÔNG sinh ra phần tử giả nào, nên
+     * vùng bấm rút về đúng 29px trong khi mọi phép tính bên trên vẫn ra 45.
+     * Đây là tiền đề của cả phép cộng, nên phải khoá riêng.
+     */
+    expect(
+      BUTTON_CLASS,
+      'thiếu `after:content-[""]` ⇒ không có phần tử giả, vùng chạm chỉ còn khung nút',
+    ).toMatch(/after:content-\[''\]/);
+
+    const box = px * lh + 2 * padY * UNIT_PX;
+    const target = box + 2 * insetPx;
+    expect(
+      target,
+      `nút cao ${box}px + nới ${insetPx}px mỗi bên = ${target}px vùng bấm`,
+    ).toBeGreaterThanOrEqual(44);
+  });
+
+  /**
+   * Nới vùng chạm CHỈ đúng khi băng còn chỗ chứa nó.
+   *
+   * Băng là con đầu tiên của `flex h-full flex-col overflow-hidden`, và băng
+   * có `py-1.5` (6px). Nới 8px thì trên nhô ra khỏi mép trên của container
+   * 2px ⇒ `overflow-hidden` cắt mất ⇒ vùng bấm thật còn ~43px, tức dưới
+   * ngưỡng 44px dù phép tính trên vẫn ra 45. Đây là lỗi mà assert "45px ≥ 44"
+   * ở trên KHÔNG bắt được, vì nó chỉ đọc class của nút chứ không đọc bố cục
+   * quanh nó.
+   *
+   * ĐỎ khi: băng quay về `py-1.5` trong khi nút vẫn `after:-inset-2`.
+   */
+  it('băng chừa đủ padding cho phần nới, không bị overflow-hidden cắt', () => {
+    const insetUnit = BUTTON_CLASS.match(/after:-inset-(\d+(?:\.\d+)?)\b/)?.[1];
+    const insetRaw = BUTTON_CLASS.match(/after:-inset-\[(\d+(?:\.\d+)?)px\]/)?.[1];
+    const insetPx = insetRaw !== undefined ? Number(insetRaw) : Number(insetUnit ?? 0) * UNIT_PX;
+
+    const bannerPadY = Number(BANNER_CLASS.match(/\bpy-([\d.]+)\b/)?.[1] ?? Number.NaN);
+    expect(Number.isFinite(bannerPadY), 'không đọc được padding dọc của băng').toBe(true);
+
+    expect(
+      bannerPadY * UNIT_PX,
+      `băng chỉ có ${bannerPadY * UNIT_PX}px padding nhưng nút nới ${insetPx}px ⇒ phần nới tràn ra ngoài và bị cắt`,
+    ).toBeGreaterThanOrEqual(insetPx);
+  });
+
+  /**
+   * ĐỎ khen: nhãn nút ở bậc `micro` (10px) thì nhỏ hơn cả chữ băng chứa nó
+   * (`text-xs`). Bậc `ui` là bậc dành cho nhãn nút theo thang ở §13.2.
+   */
+  it('nhãn nút không dùng cỡ micro', () => {
+    expect(BUTTON_CLASS, 'nhãn nút vẫn ở 10px').not.toMatch(/\btext-micro\b/);
+    expect(BUTTON_CLASS, 'nhãn nút phải ở bậc dành cho nút').toMatch(/\btext-ui\b/);
   });
 });

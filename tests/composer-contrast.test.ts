@@ -443,7 +443,16 @@ describe('composer — tương phản tính được, không soi bằng mắt', 
   });
 
 describe('dòng gợi ý phím dưới ô nhập', () => {
-    const idx = enclosingClassOf('Shift+Enter xuống dòng');
+  /*
+   * Neo bằng `{hints.short}` — biểu thức JSX in dòng gợi ý — chứ không phải
+   * bằng chuỗi "Shift+Enter xuống dòng": chuỗi đó nay nằm trong hàm
+   * `keyHints` ở cấp module, tức TRƯỚC mọi className trong file, nên
+   * `enclosingClassOf` quét không thấy thẻ bao quanh nó.
+   *
+   * Neo vẫn giữ đúng ý cũ: dòng gợi ý phải nằm trong thẻ mang class — ai tách
+   * nó ra khỏi thẻ đó thì test đỏ chứ không đo nhầm thẻ khác.
+   */
+    const idx = enclosingClassOf('{hints.short}');
     const hintClass = CLASS_HITS[idx]!.text;
 
     it('năm gợi ý phím đọc được: text-tertiary trên nền app, không phải text-disabled', () => {

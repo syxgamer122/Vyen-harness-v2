@@ -434,3 +434,204 @@ trung tính cho trạng thái chưa biết.
   có 29 từ commit `60b7eea`) và `tests/evidence-badge.test.ts:511` (dấu gạch dài
   ở `components/chat/status-line.tsx:317`, từ `dbd671a`). Cần quyết định riêng:
   số hex đúng hay 4 màu đó lẽ ra phải chuyển sang CSS var theo luật 3-file ở §3.1.
+  → Đã giải quyết ở §12.5 và §12.6.
+
+---
+
+## 12. Đợt "4 lỗi còn mở + 2 test đỏ có sẵn" — 2026-10-13
+
+Bản đánh giá UI 6.5/10 được đưa vào. Đợt này KHÔNG sửa lại toàn bộ bản đánh giá:
+người duyệt chốt phạm vi = **4 lỗi còn mở + 2 test đỏ có sẵn**.
+
+### 12.0 Đối chiếu lại: mục đã xong không phải mục còn mở
+
+| Mục của bản đánh giá | Thực tế trong repo |
+|---|---|
+| P0 "màn trống không có lối vào thêm nhà cung cấp" | **ĐÃ XONG** — `message-list.tsx:785-800` (thẻ + nút), `chat-interface.tsx:180` nối `openSettings('providers')`, commit `c5df013` |
+| Chip model khoá không có lời | ĐÃ XONG — §11.1 việc 2 |
+| Scheduler nút đỏ khi chưa biết trạng thái | ĐÃ XONG — commit `ffa1033` |
+| "Cuộn xuống" hiện ở màn trống | CÒN MỞ — §12.1 việc 1 |
+
+**§11.3 ("onboarding ở màn trống CHƯA làm, còn chờ một quyết định") đã lỗi thời**
+— việc đó đã làm. Câu hỏi "người mới phải xong gì trong 5 phút đầu" vẫn chưa có
+câu trả lời, nhưng phần đã có (thẻ + nút) không cần chờ nó nữa.
+
+### 12.1 Bốn lỗi còn mở
+
+Mọi lỗi đều là **hiển thị sai điều kiện**, không phải logic hỏng sâu. Vì repo
+không có DOM (`vitest.config.mts` environment `node`, không jsdom), mỗi việc
+được chặn bằng HAI lớp đúng như `tests/composer-affordances.test.ts` đã làm:
+test hàm thuần (import helper export từ component, gọi thật) + test soi source
+bắt đúng dòng JSX gọi helper đó. Lớp 2 là lớp quan trọng: helper đúng mà
+không ai gọi thì lỗi vẫn sống.
+
+| # | Việc | Chỗ sửa | Cách chứng minh |
+|---|---|---|---|
+| 1 | Nút "cuộn xuống" hiện ở màn trống | `message-list.tsx:957` | `showJumpToLatest()` thuần + source test chặn dòng JSX |
+| 2 | "Xuất" hiện ở chat rỗng (Nén/Xoá đã có điều kiện) | `status-line.tsx:363` | source test: cả ba hành động header cùng chịu `hasMessages` |
+| 3 | Gợi ý phím nói "Enter để gửi" trên thiết bị cảm ứng | `composer.tsx:1700`, `:1704` | `keyHint(sendOnEnter, isTouchDevice)` thuần + source test |
+| 4 | Nút "Chiếm quyền điều khiển" nhỏ hơn vùng chạm | `chat-interface.tsx:98` | thêm vào `observer-banner-affordance.test.ts` |
+
+**Không sửa cờ `isAtBottom` cho chat rỗng.** Cờ đó chỉ có MỘT chỗ tiêu thụ
+(`chat-interface.tsx:165` → `message-list.tsx:957`; grep `isAtBottom` xác nhận),
+nên chặn hiển thị là hết lỗi. Thêm reset state là việc không ai dùng tới.
+
+**Luật của việc 3** (đừng sửa sai sau này): `handleKeyDown` không gửi khi
+`isTouchDevice` (`composer.tsx:994`), và `Alt+Enter` cũng bị chặn (`:980`), nên
+trên cảm ứng KHÔNG còn đường bàn phím nào gửi được. Dòng gợi ý vì thế phải nói
+"Enter xuống dòng" và chỉ ra nút Gửi — không được hứa một phím không tồn tại.
+Cùng luật này áp cho máy tính bảng có bàn phím (`(pointer: coarse)`).
+
+### 12.2 Hai test đỏ có sẵn
+
+| # | Test đỏ | Nguyên nhân thật | Cách sửa |
+|---|---|---|---|
+| 5 | `observer-banner-affordance.test.ts:49` | Đếm **key** (29) trong khi `design-system.test.ts:519` đếm **giá trị đã khử trùng** (25). 4 key thừa là 3 cặp trùng giá trị (`#ffffff`: surface/overlay/on-fill, `#575757`: secondary/diff-ctx, `#b3261e`: danger/diff-del) | Đổi sang đếm giá trị khử trùng — cùng bất biến với test khoá bảng màu, miễn nhiễm với việc thêm key có chủ đích |
+| 6 | `evidence-badge.test.ts:511` | Em dash trong `title` của thanh ngữ cảnh: `status-line.tsx:317` | Đổi em dash thành dấu hai chấm |
+
+Lưu ý độ nghiêm trọng của #5: assert đó đứng ở **cấp file**, nên nó làm hỏng
+cả suite (0 test chạy) ⇒ toàn bộ phần khoá "băng quan sát không phải ngõi cụt
++ tương phản WCAG" đang không chạy, không phải một assert lẻ.
+
+### 12.3 Ràng buộc khi làm
+
+- **Không `npx`** (`./node_modules/.bin/vitest`), không pipe vào `tail` — §11.4.
+- **CRLF**: file trên đĩa là CRLF, mọi regex có `\n` cứng phải chuẩn hoá trước
+  (như `composer-affordances.test.ts:36-38`).
+- **Mutation check** cho cả sáu việc (§11.5 đã làm một lần, giữ thói đó).
+  Script mutation phải có `timeout` CỨNG cho từng lần chạy vitest và phải hoàn
+  tác **trước khi** in kết quả: lần đầu không có, lệnh bị giết giữa chừng và
+  bỏ lại sáu mutation trong cây, phải sửa tay (`/tmp/opencode/undo-mutations.cjs`).
+- `npm run typecheck` chạy >10 phút không xong trên máy này (không in gì). Nếu
+  hết giờ thì báo "chưa xác minh", không coi là xanh. → **ĐÃ XÁC MINH**: cho
+  chạy một mình với 25 phút là xong, `tsc --noEmit` exit 0. Lần chạy hụt là do
+  tranh CPU với vitest chứ không phải do lỗi kiểu.
+
+### 12.4 Ngoài phạm vi, ghi lại không làm
+
+- `tailwind.config.ts:12` ghi "Ứng dụng DARK-ONLY" trong khi bảng màu là
+  light-only và `design-system.test.ts:1750` khoá "một theme sáng". Comment sai
+  — nhưng sửa comment là việc riêng, không gộp vào bản vá lỗi.
+- `vyen-logo.tsx:110` "chạy hoàn toàn trên máy bạn" sai với BYOK. Cần chốt
+  câu mới trước khi viết.
+- `composer.tsx:1673` và `:1697` là hai `div` lồng nhau có **cùng bộ class**
+  (cả hai đều `mt-3 … sm:block`) ⇒ vùng gợi ý thừa 24px khoảng cách. Bỏ `div`
+  ngoài sẽ đổi khoảng cách nhìn thấy, nên để người duyệt quyết.
+- Banner sao lưu có ba cách đóng trùng nghĩa (`backup-reminder.tsx:107-127`).
+- 15 tiêu đề tab lẫn Anh–Việt (`settings-tabs.ts:69-91`).
+- Không có `<h1>` ở màn chính (chỉ `error.tsx`/`global-error.tsx`).
+
+### 12.5 Đã làm — bằng chứng
+
+Sáu việc, mỗi việc đã xem **ĐỎ trước** rồi mới sửa, và mỗi việc có một mutation
+riêng đã xem **ĐỎ sau khi hoàn tác bản vá**:
+
+| # | Việc | Test đỏ trước | Mutation xác nhận |
+|---|---|---|---|
+| 1 | Nút cuộn ở màn trống | `showJumpToLatest is not a function` + dòng JSX chưa gọi | Bỏ `hasMessages` → đúng 2 assert lớp source đỏ |
+| 2 | Xuất ở chat rỗng | `hành động "Xuất" không nằm trong {hasMessages && …}` | Gỡ guard → đúng 1 assert đỏ |
+| 3 | Gợi ý phím cảm ứng | `keyHints is not a function` (4 test) | `if (false)` thay cho `if (isTouchDevice)` → 2 assert đỏ |
+| 4 | Vùng chạm nút chiếm quyền | `nút không nới vùng chạm bằng after:` + `nhãn nút vẫn ở 10px` | Bỏ `after:-inset-2` → đúng 1 assert đỏ |
+| 5 | Đếm bảng màu | `expected 29 to be 25` (hỏng cả suite) | Thêm 1 màu mới → `expected 26 to be 25` |
+| 6 | Em dash trong tooltip | `copy còn dấu gạch dài: status-line.tsx:317` | Trả em dash vào → đúng 1 assert đỏ |
+
+**Một assert của chính tôi phải sửa lại.** Bản đầu khoá "chỗ dùng `isAtBottom`
+phải đúng 3" — bản vá làm nó thành 5, tức tôi đã đoán sai số. Đổi thành assert
+có nghĩa: không được tồn tại `{!isAtBottom` ở đâu trong JSX.
+
+**Một test khác phải sửa neo, không phải nới assert.**
+`tests/composer-contrast.test.ts` neo bằng chuỗi `"Shift+Enter xuống dòng"` để
+tìm thẻ bao nó; chuỗi đó dời vào hàm `keyHints` ở cấp module nên
+`enclosingClassOf` không còn thấy thẻ bao ⇒ suite đỏ 0 test. Đổi neo sang
+`{hints.short}` (biểu thức JSX in dòng gợi ý). ý của test giữ nguyên: dòng gợi
+ý phải nằm trong thẻ mang class, tách ra là đỏ.
+
+### 12.6 Kiểm chứng cuối
+
+| Lệnh | Kết quả |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | 0 lỗi, 8 cảnh báo có sẵn, không có ở file đã sửa |
+| `vitest run` (231 file) | 5 file đỏ, **không file nào do đợt này** |
+
+Năm file đỏ đều là **ngân sách thời gian** trên máy chậm, và tập hợp đỏ **đổi
+giữa hai lần chạy** (secret-registry đỏ 2 ca ở lần 1, 3 ca ở lần 2;
+`teamwork-enhanced-engine` chỉ đỏ ở lần 2):
+
+| File | Assert | Số đo |
+|---|---|---|
+| `redteam-picker.test.ts:191` | `toBeLessThan(500)` | 2509ms |
+| `secret-registry.test.ts:327` | `toBeLessThan(BUDGET_MS)` | 2659ms, 4081ms |
+| `teamwork-enhanced-engine.test.ts:165` | `afterAll` timeout | 30079ms |
+| `web-bridge.test.ts:316` | timeout spawn CLI | 69407ms |
+
+Không file nào trong số đó import `composer` / `message-list` / `status-line` /
+`chat-interface` / `tailwind.config` (grep rỗng), nên diff này không thể chạm
+tới chúng.
+
+### 12.7 Vòng code review — hai pass, và những chỗ review đúng hơn tôi
+
+Hai reviewer subagent, tách theo file sửa và file test (một reviewer duy nhất bị
+nuốt mất output hai lần — phải chia nhỏ thì mới trả lời được). Cả hai **chỉ báo
+cáo, không sửa gì**.
+
+**Pass 1 (mã production) — không có Critical.** Một Important thật:
+
+| Phát hiện | Bằng chứng | Cách sửa |
+|---|---|---|
+| Claim "45px, qua ngưỡng 44px" SAI ~2px | Băng là con đầu của `flex h-full flex-col overflow-hidden` và có `py-1.5` (6px); nới 8px thì nhô 2px ra ngoài mép trên và bị cắt ⇒ vùng bấm thật ~43px | Băng `py-1.5` → `py-2`. **Và thêm assert** "băng chừa đủ padding cho phần nới", vì assert 45px ≥ 44 chỉ đọc class của nút nên không bắt được lỗi cắt |
+
+**Pass 2 (test) — ba Important, đều thật:**
+
+| Phát hiện | Cách sửa |
+|---|---|
+| Không assert nào khoá `after:content-['']` — bỏ đúng class đó thì `after` không sinh phần tử giả, vùng bấm rút về 29px mà **mọi assert vẫn xanh** | Khoá riêng tiền đề này (mutation đã xác nhận) |
+| Assert tương phản mới là bộ dò đổi thuần tuý: nó không đọc `BUTTON_CLASS` nên không đổi cỡ chữ nào làm nó đỏ, và test cũ ở trên đã khoá cả hai token | Xoá |
+| `indexOf('<ThinkingMenu')` trả -1 khi không tìm thấy, mà -1 < mọi chỉ số ⇒ xanh khi cái cần tìm đã bị xoá | Tách bước kiểm tra tồn tại, rồi mới so vị trí (mutation đã xác nhận) |
+
+Ngoài ra reviewer chỉ ra một **lỗ hổng một chiều**: cả khối test về gợi ý phím
+đều suy ra từ `handleKeyDown`, nhưng không gì khoá chiều ngược lại — bỏ
+`!isTouchDevice` khỏi nhánh Enter thì bốn assert vẫn xanh trong khi dòng gợi ý
+lại sai. Đã thêm assert khoá đúng hai nhánh đó.
+
+**Hai chỗ tôi đã chốt sai và reviewer đúng:**
+
+1. `expect(code).toContain('showJumpToLatest(hasMessages, isAtBottom)')` — tôi gọi
+   đây là lớp 2 có tác dụng. Nó khoá *cách viết*, không khoá *hành vi*: đổi tên
+   tham số hoặc bọc thêm một biến trung gian là đỏ mà lỗi vẫn không có. Đã đổi
+   thành assert âm tính mang nghĩa: không được tồn tại `{!isAtBottom` ở đâu trong
+   JSX, tức không ai được tự quyết hiện nút bằng cờ suông.
+2. `DISTINCT_COLORS.size === 25` — tôi giữ vì "cùng bất biến với test khoá bảng
+   màu". Đúng là trùng, nhưng nó biến một bảo hiểm đã có ở nơi khác thành quả
+   bom cấp file — chính cái bom đã làm hỏng suite lần này. Đã hạ xuống còn
+   "bảng đọc được không", và mutation xác nhận `design-system.test.ts` vẫn bắt
+   được việc thêm màu mới (đỏ ở assert "khớp tailwind.config.ts theo cả hai
+   chiều").
+
+**Còn làm theo:** bỏ `font-sans` thừa trên nút, trả lại dòng trống bị xoá nhầm ở
+`composer.tsx`, comment JSX nhắc nhánh cảm ứng, và đổi copy cảm ứng từ "nút Gửi"
+sang "nút ↑" — vì nút gửi là nút tròn chỉ có mũi tên, không in chữ, nên "nút Gửi"
+dẫn người dùng đi tìm một cái nhãn không tồn tại trên màn hình.
+
+**Mutation của vòng review** (bốn cái, đều đỏ):
+
+| Mutation | Assert đỏ |
+|---|---|
+| Bỏ `after:content-['']` | vùng chạm đủ 44px |
+| Băng `py-2` → `py-1.5` | băng chừa đủ padding cho phần nới |
+| Bỏ `!isTouchDevice` khỏi nhánh Enter | handleKeyDown không cho phép Enter gửi khi cảm ứng |
+| Đổi tên `<ThinkingMenu>` | ChatExportMenu vẫn nằm trong cụm nút phải |
+
+### 12.8 Kiểm chứng cuối (sau vòng review)
+
+| Lệnh | Kết quả |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | 0 lỗi, 8 cảnh báo có sẵn, không có ở file đã sửa |
+| `vitest run` (231 file) | 2 file đỏ, **không file nào do đợt này** |
+
+Hai file đỏ còn lại đều là ngân sách thời gian: `redteam-picker.test.ts:191`
+(`toBeLessThan(500)`, đo được 2101ms) và `secret-registry.test.ts:327`
+(ReDoS budget, 2182–2970ms). Ở lần chạy trước còn thêm `teamwork-enhanced-engine`
+và `web-bridge` đỏ rồi tự xanh ở lần này — đó là dấu hiệu flake do máy chậm, và
+cả bốn đều nằm ngoài các file đợt này đụng tới.
