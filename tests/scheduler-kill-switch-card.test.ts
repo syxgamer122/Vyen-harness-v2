@@ -85,7 +85,37 @@ describe('scheduler — "không biết" không được tô như cảnh báo', (
     );
   });
 
-  it('nhãn "không đọc được trạng thái" còn nguyên — nó trung thực', () => {
-    expect(code).toMatch(/'Scheduler: KHÔNG ĐỌC ĐƯỢC trạng thái'/);
+  it('nhãn viết thường, nói đúng sự thật', () => {
+    expect(
+      code,
+      'trạng thái chưa biết không phải lỗi — không in hoa như cảnh báo',
+    ).toMatch(/'Chưa xác định được trạng thái Scheduler'/);
+    expect(code, 'còn sót nhãn in hoa cũ').not.toContain('KHÔNG ĐỌC ĐƯỢC');
+  });
+
+  it('câu giải thích không dùng từ nội bộ', () => {
+    // "Bridge" và "kill-switch" là thuật ngữ trong mã, không phải thứ người
+    // dùng hiểu. Câu này đọc cho người, nên phải nói bằng lời của họ.
+    // CÓ HAI nhánh `killSwitch === null`: nhãn trong <div> trước, câu giải
+    // thích trong <p> sau. Lấy match CUỐI, không lấy nhãn.
+    const branches = [...code.matchAll(/: killSwitch === null\s*\?\s*'([^']*)'/g)];
+    expect(branches.length, 'không cắt được nhánh chưa biết').toBeGreaterThanOrEqual(2);
+    expect(
+      branches[branches.length - 1]![1],
+      'câu giải thích còn dùng từ nội bộ',
+    ).not.toMatch(/Bridge|kill-switch/);
+  });
+
+  it('nút trung tính khi chưa biết — chỉ đỏ khi đang chạy', () => {
+    expect(
+      code,
+      'nút đỏ = "bấm là dừng mọi lịch"; khi chưa biết thì không có hành động nào chắc chắn',
+    ).toMatch(/killSwitch === false \? 'border-danger text-danger' : ''/);
+  });
+
+  it('nhánh "không có scheduler" giữ nguyên', () => {
+    // Ruling 5: nhánh này đã trung thực và có test riêng khoá
+    // (scheduler-panel-honesty.test.ts:120).
+    expect(code).toMatch(/'Scheduler không có trong bản này'/);
   });
 });
