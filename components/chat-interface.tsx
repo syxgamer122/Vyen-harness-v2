@@ -3,6 +3,7 @@
 import { ApprovalQueue } from '@/lib/approval-queue';
 import { useAgentRuntime } from '@/react/use-agent-runtime';
 import { useApprovalBridge } from '@/react/use-approval-bridge';
+import { useAppStore } from '@/lib/store';
 import { useChatOrchestration } from '@/react/use-chat-orchestration';
 
 import { StatusLine } from '@/components/chat/status-line';
@@ -175,6 +176,8 @@ export default function ChatInterface() {
           onSaveEdit={orch.saveEdit}
           onDraftChange={orch.setDraft}
           onSelectSuggestion={orch.onSelectSuggestion}
+          hasModels={orch.MODELS.length > 0}
+          onAddProvider={() => useAppStore.getState().openSettings('providers')}
           onReload={() =>
             orch.lastMessageId && orch.handleRegenerate(orch.lastMessageId)}
           onContinueGenerating={orch.continueGenerating}

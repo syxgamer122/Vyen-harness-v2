@@ -254,6 +254,10 @@ interface MessageListProps {
   onCancelEdit: () => void;
   onDraftChange: (text: string) => void;
   onSelectSuggestion: (prompt: string) => void;
+  /** Chưa có model nào để chạy (BYOK — không có catalog built-in). */
+  hasModels: boolean;
+  /** Mở Cài đặt → tab Model & Nhà cung cấp. */
+  onAddProvider: () => void;
   onReload: () => void;
   onContinueGenerating?: () => void;
 
@@ -292,6 +296,8 @@ export const MessageList = memo(function MessageList({
   onCancelEdit,
   onDraftChange,
   onSelectSuggestion,
+  hasModels,
+  onAddProvider,
   onReload,
   onContinueGenerating,
   compaction,
@@ -766,6 +772,33 @@ export const MessageList = memo(function MessageList({
                * cỡ ở cả hai nơi thì người dùng thấy đúng cái họ sắp gửi, thay
                * vì một dòng 12px biến thành 16px ngay khi bấm.
                */}
+{/*
+               * Lối vào cho người mới. App là BYOK: không có catalog model
+               * built-in, nên "chưa có model" là trạng thái ĐẦU TIÊN của mọi
+               * người dùng mới, không phải lỗi.
+               *
+               * Trước đây lối ra chỉ là một dòng chữ sau khi bấm gửi
+               * (`use-chat-orchestration.ts:5474`) — không có nút, và người dùng
+               * phải gõ một câu vô nghĩa với dự án chưa cấu hình trước khi
+               * nghe thấy nó.
+               */}
+              {!hasModels && (
+                <div className="mt-8 w-full max-w-lg">
+                  <div className="rounded-xl border border-default bg-surface px-4 py-4 text-left">
+                    <p className="font-sans text-read font-medium text-text-primary">
+                      Thêm nhà cung cấp để bắt đầu
+                    </p>
+                    <p className="mt-1 font-sans text-body text-text-muted">
+                      App dùng model của bạn: khai API key rồi chọn model. Chưa có
+                      model thì chưa gửi được tin nhắn nào.
+                    </p>
+                    <button type="button" onClick={onAddProvider} className="btn-primary mt-3">
+                      <span>Thêm nhà cung cấp</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-8 flex w-full max-w-lg flex-col gap-3">
                 {suggestions.map((prompt) => (
                   <button
