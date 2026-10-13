@@ -25,6 +25,8 @@ export class TabLockCoordinator {
   private currentChatId: string | null = null;
   /** Tab chính đã im lặng quá ngưỡng đóng băng — cơ sở để quyết định tự giành. */
   private leaderFrozen = false;
+  /** Đã thử tự giành cho lần đóng băng này chưa — chặn giành lặp mỗi 2 giây. */
+  private stealAttemptedForFreeze = false;
   /**
    * Callback LEADER/OBSERVER của lần giành quyền đang chạy. Giữ lại vì
    * `visibilitychange` xảy ra ngoài vòng đời của `acquireRuntimeLock`: không
@@ -71,6 +73,7 @@ export class TabLockCoordinator {
         if (msg.type === 'HEARTBEAT') {
           this.lastLeaderHeartbeat = Date.now();
           this.leaderFrozen = false;
+          this.stealAttemptedForFreeze = false;
           this.onLeaderFrozenCallback?.(false);
         } else if (msg.type === 'FORCE_YIELD') {
           // Tab khác yêu cầu nhường quyền Leader
@@ -227,28 +230,36 @@ export class TabLockCoordinator {
       if (elapsed > 5000) {
         this.leaderFrozen = true;
         this.onLeaderFrozenCallback?.(true);
+        this.tryStealIfVisibleAndFrozen();
       }
     }, 2000);
   }
 
-  /**
-   * Tab quay lại hiện thì tự giành lại quyền — không bắt người dùng bấm nút.
+/**
+   * Tự giành lại quyền khi tab chính đã đóng băng — không bắt người dùng bấm nút.
    *
-   * Điều kiện CẢ HAI: tab này đang hiện, và tab chính đã đóng băng. Thiếu điều
-   * kiện thứ hai là ping-pong: hai tab cùng hiện (chia đôi màn hình) đều còn
-   * heartbeat, mỗi tab sẽ cướp lại của tab kia mãi.
+   * MỘT chỗ quyết định cho cả hai đường vào: vòng kiểm tra đóng băng (tab đã
+   * hiện sẵn rồi) và `visibilitychange` (tab vừa quay lại). Điều kiện CẢ HAI:
+   * tab này đang hiện, và tab chính đã đóng băng.
+   *
+   * Thiếu điều kiện thứ hai là ping-pong: hai tab cùng hiện (chia đôi màn hình)
+   * đều còn heartbeat, mỗi tab sẽ cướp lại của tab kia mãi. Cờ
+   * `stealAttemptedForFreeze` chốt một lần thử mỗi lần đóng băng — không cố thời
+   * là một lần để chờ.
    */
+  private tryStealIfVisibleAndFrozen(): void {
+    if (!this.leaderFrozen || this.stealAttemptedForFreeze) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    const callbacks = this.leaderCallbacks;
+    const chatId = this.currentChatId;
+    if (!callbacks || !chatId) return;
+    this.stealAttemptedForFreeze = true;
+    void this.forceStealLock(chatId, callbacks.onLeader, callbacks.onLost);
+  }
+
   private attachVisibilityRecovery(): void {
     if (typeof document === 'undefined' || this.visibilityHandler) return;
-    this.visibilityHandler = () => {
-      if (document.visibilityState !== 'visible') return;
-      if (!this.leaderFrozen) return;
-      const callbacks = this.leaderCallbacks;
-      const chatId = this.currentChatId;
-      if (!callbacks || !chatId) return;
-      this.leaderFrozen = false;
-      void this.forceStealLock(chatId, callbacks.onLeader, callbacks.onLost);
-    };
+    this.visibilityHandler = () => this.tryStealIfVisibleAndFrozen();
     document.addEventListener('visibilitychange', this.visibilityHandler);
   }
 

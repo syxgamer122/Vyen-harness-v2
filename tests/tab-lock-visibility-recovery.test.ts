@@ -242,4 +242,55 @@ describe('tab-lock — tab quay lại hiện thì tự lấy lại quyền', () 
       'gọi lại callback cũ là báo LEADER bằng requestId cũ — UI sẽ bỏ và kẹt OBSERVER',
     ).not.toHaveBeenCalled();
   });
+  it('tab ĐANG HIỆN và tab chính đã đóng băng thì tự giành, không cần sự kiện nào', async () => {
+    /*
+     * Không chạm `visibilitychange` lần nào: tab hiện sẵn từ đầu, tab chính im
+     * quá 5s. Trước khi sửa, vòng kiểm tra chỉ bật cờ + banner rồi bắt người
+     * dùng bấm tay — đúng lỗ hổng của đợt trước.
+     */
+    const coordinator = new TabLockCoordinator();
+    const onLeader = vi.fn();
+    visibility = 'visible';
+    lockGranted = false;
+
+    await coordinator.acquireRuntimeLock(CHAT, onLeader, vi.fn());
+    await vi.advanceTimersByTimeAsync(6000);
+
+    expect(
+      lockRequests.filter((r) => r.options.steal === true),
+      'tab đang hiện + tab chính đóng băng thì phải tự giành',
+    ).not.toHaveLength(0);
+    expect(onLeader).toHaveBeenCalled();
+  });
+
+  it('mỗi lần đóng băng chỉ thử giành MỘT lần, heartbeat là lần đóng băng mới', async () => {
+    /*
+     * Không có cờ thì vòng 2s sẽ giành lặp lại mãi khi tab kia không nhận được
+     * heartbeat — đúng cái ping-pong mà PLAN.md §11.1 cấm.
+     */
+    const coordinator = new TabLockCoordinator();
+    const onLeader = vi.fn();
+    visibility = 'visible';
+    lockGranted = false;
+    stealAllowed = false; // cướp thất bại, tab kia vẫn im
+
+    await coordinator.acquireRuntimeLock(CHAT, onLeader, vi.fn());
+    await vi.advanceTimersByTimeAsync(20000); // ~4 lần kiểm tra
+    expect(
+      lockRequests.filter((r) => r.options.steal === true).length,
+      'cùng một lần đóng băng không được thử giành nhiều lần',
+    ).toBe(1);
+
+    // Tab chính sống lại rồi đóng băng lần nữa → được thử lại.
+    receiveHeartbeat();
+    stealAllowed = true;
+    lockGranted = true;
+    await vi.advanceTimersByTimeAsync(6000);
+
+    expect(
+      lockRequests.filter((r) => r.options.steal === true).length,
+      'một lần đóng băng mới thì được thử lại',
+    ).toBe(2);
+    expect(onLeader).toHaveBeenCalled();
+  });
 });
