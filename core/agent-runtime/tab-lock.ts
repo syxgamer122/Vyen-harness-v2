@@ -23,6 +23,15 @@ export class TabLockCoordinator {
   private lastLeaderHeartbeat = 0;
   private onLeaderFrozenCallback?: (frozen: boolean) => void;
   private currentChatId: string | null = null;
+  /** Tab chính đã im lặng quá ngưỡng đóng băng — cơ sở để quyết định tự giành. */
+  private leaderFrozen = false;
+  /**
+   * Callback LEADER/OBSERVER của lần giành quyền đang chạy. Giữ lại vì
+   * `visibilitychange` xảy ra ngoài vòng đời của `acquireRuntimeLock`: không
+   * có chỗ nào khác để lấy chúng khi cần tự giành lại.
+   */
+  private leaderCallbacks: { onLeader: () => void; onLost: () => void } | null = null;
+  private visibilityHandler: (() => void) | null = null;
 
   constructor() {
     if (typeof BroadcastChannel !== 'undefined') {
@@ -44,6 +53,7 @@ export class TabLockCoordinator {
     onLost: () => void,
   ): Promise<TabRuntimeMode> {
     this.currentChatId = chatId;
+    this.leaderCallbacks = { onLeader, onLost };
     if (typeof navigator === 'undefined' || !navigator.locks) {
       await StorageFencing.bumpEpoch(chatId);
       onLeader();
@@ -60,6 +70,7 @@ export class TabLockCoordinator {
 
         if (msg.type === 'HEARTBEAT') {
           this.lastLeaderHeartbeat = Date.now();
+          this.leaderFrozen = false;
           this.onLeaderFrozenCallback?.(false);
         } else if (msg.type === 'FORCE_YIELD') {
           // Tab khác yêu cầu nhường quyền Leader
@@ -115,6 +126,14 @@ export class TabLockCoordinator {
     onLost: () => void,
   ): Promise<TabRuntimeMode> {
     this.currentChatId = chatId;
+    /*
+     * Phải cập nhật ở ĐÂY nữa, không chỉ ở `acquireRuntimeLock`. Lần cướp tay
+     * mới hơn lần acquire: callback của nó mang requestId mới, và
+     * `reduceTabRuntimeState` (react/use-agent-runtime.ts:81-91) bỏ kết quả có
+     * requestId cũ. Giữ callback cũ thì lần tự giành sau đó sẽ báo LEADER bằng
+     * requestId cũ và bị bỏ — tab giữ lock thật mà UI vẫn kẹt ở OBSERVER.
+     */
+    this.leaderCallbacks = { onLeader, onLost };
     // Báo cho các tab khác biết có hành động cướp quyền
     try {
       this.channel?.postMessage({
@@ -201,18 +220,47 @@ export class TabLockCoordinator {
   private startObserverWatch(chatId: string): void {
     this.stopObserverWatch();
     this.lastLeaderHeartbeat = Date.now();
+    this.leaderFrozen = false;
+    this.attachVisibilityRecovery();
     this.checkFrozenTimer = setInterval(() => {
       const elapsed = Date.now() - this.lastLeaderHeartbeat;
       if (elapsed > 5000) {
+        this.leaderFrozen = true;
         this.onLeaderFrozenCallback?.(true);
       }
     }, 2000);
+  }
+
+  /**
+   * Tab quay lại hiện thì tự giành lại quyền — không bắt người dùng bấm nút.
+   *
+   * Điều kiện CẢ HAI: tab này đang hiện, và tab chính đã đóng băng. Thiếu điều
+   * kiện thứ hai là ping-pong: hai tab cùng hiện (chia đôi màn hình) đều còn
+   * heartbeat, mỗi tab sẽ cướp lại của tab kia mãi.
+   */
+  private attachVisibilityRecovery(): void {
+    if (typeof document === 'undefined' || this.visibilityHandler) return;
+    this.visibilityHandler = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!this.leaderFrozen) return;
+      const callbacks = this.leaderCallbacks;
+      const chatId = this.currentChatId;
+      if (!callbacks || !chatId) return;
+      this.leaderFrozen = false;
+      void this.forceStealLock(chatId, callbacks.onLeader, callbacks.onLost);
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
   }
 
   private stopObserverWatch(): void {
     if (this.checkFrozenTimer) {
       clearInterval(this.checkFrozenTimer);
       this.checkFrozenTimer = null;
+    }
+    this.leaderFrozen = false;
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
     }
   }
 

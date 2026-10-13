@@ -327,3 +327,110 @@ cho phần còn lại trước `convertToCoreMessages`; zod schema (`:710`) nh�
 - **Chưa soi bằng mắt**: mở app, vào một lượt đang chờ quyền, F5, xác nhận header
   hiện "đã hủy" và dòng tool hiện "bị bỏ dở".
 
+
+---
+
+## 11. Đợt "ba lỗi đã kiểm chứng bằng path:line" — 2026-10-13
+
+Bản đánh giá UI (chấm 6.5/10, P0–P2) được đưa vào để đối chiếu. **5 subagent đọc
+lại từng claim** — kết quả là **5 claim sai, 2 mục P0 sai cơ chế**, nên đã sửa
+theo bằng chứng chứ không theo đề bài. Danh sách claim sai ở §11.2.
+
+### 11.1 Ba việc đã làm
+
+| Việc | Cách chứng minh | Kết quả |
+|---|---|---|
+| Trạng thái `null` (chưa biết) của kill-switch tô màu trung tính thay vì màu cảnh báo | `tests/scheduler-kill-switch-card.test.ts` (đọc source — repo không có DOM) | ĐỎ 3/5 → xanh |
+| Nút chọn model bị khoá mà không lời: thêm nhánh "chưa có model nào → Thêm nhà cung cấp ở Cài đặt", và nhánh "chưa chọn model" cũng có lời | `tests/model-selector-title.test.ts` (7 assert) | ĐỎ 4/7 → xanh |
+| Tab quay lại hiện thì **tự giành lại lock**, chỉ khi tab chính đã đóng băng | `tests/tab-lock-visibility-recovery.test.ts` (4 test hành vi thật, dựng document/navigator.locks/BroadcastChannel) | ĐỎ 2/4 → xanh |
+
+**Luật của việc 3** (ghi để lần sau không sửa sai): chỉ tự giành khi **CẢ HAI** —
+tab này đang hiện **và** tab chính đã đóng băng. Thiếu điều kiện thứ hai là
+ping-pong: hai tab cùng hiện (chia đôi màn hình) đều còn heartbeat, mỗi tab cướp
+lại của tab kia mãi. **Không sửa**: điều kiện hiện băng `!isLeader` và nút "Chiếm
+quyền điều khiển" — chúng vẫn là đường thoát thủ công hợp lệ.
+
+### 11.2 Claim sai của bản đánh giá (đã loại)
+
+| Claim | Thực tế |
+|---|---|
+| "Banner khoá tab báo giả liên tục" | Sai. Heartbeat 2s tự tắt cờ frozen (tab-lock.ts:191, :61-63). Vấn đề thật là **thiếu tự phục hồi** — đó là việc 3. |
+| "Nút gửi mù vì chưa chọn model" | Sai. composer.tsx:855-859 khoá vì ô nhập rỗng; thiếu model thì vẫn bấm được, chặn muộn ở use-chat-orchestration.ts:5474. Chỗ mù thật là **nút chọn model** — việc 2. |
+| "Cảnh báo kill-switch báo trạng thái giả" | Sai một nửa. Nó **trung thực**: bridge không có lệnh đọc (scheduler-panel.tsx:154-159), và tests/scheduler-panel-honesty.test.ts:120 đang khoá nhãn đó. Sai ở chỗ **lúc nào hiện** và **tô màu thế nào** — việc 1. |
+| "data-tab.tsx:169 lẫn Anh–Việt" | Sai cả path lẫn nội dung. File ở components/settings/data-tab.tsx:169, dòng đó là "Thống kê tiêu thụ Token". |
+| "recipes-panel.tsx:458 lẫn Anh–Việt" | Sai ý. Đúng là text-disabled, nhưng chữ trong đó thuần tiếng Việt. |
+
+Con số đúng sau khi tự đếm: text-micro 84 chỗ, text-meta 195 chỗ (khớp bản đánh
+giá); tương phản text-disabled là **2.52:1** (bản đánh giá ghi 2.3–2.5); mảng lẫn
+ngôn ngữ thật ~25 chỗ, tập trung ở mẫu "Tiếng Việt (English)" trong 15 tiêu đề tab
+(settings-tabs.ts:69-91).
+
+### 11.3 CHƯA làm — còn chờ một quyết định
+
+**Onboarding ở màn trống.** Bản đánh giá chấm mảng này 3/10 và nói đúng phần
+"không có lối vào": không có component onboarding nào trong repo. Nhưng cách sửa
+phụ thuộc câu hỏi **người mở app lần đầu phải xong gì trong 5 phút đầu** — chưa có
+câu trả lời nên chưa đụng. Khi có: chat-interface.tsx không có wiring `settings`
+nào (grep rỗng), nên mở hộp Cài đặt từ màn trống tốn một chuỗi prop. Đó là phần
+tốn công — đừng làm nửa vời.
+
+### 11.4 Ràng buộc phát hiện khi làm
+
+- **Không dùng `npx`** để chạy vitest: `npx vitest` đi tải mạng và treo >3 phút.
+  Dùng `./node_modules/.bin/vitest`. Tương tự **không pipe vitest vào `tail`** — nó
+  giữ pipe nên lệnh treo; ghi ra file rồi đọc file.
+- Bản vá đầu tiên **ẩn** thẻ kill-switch khi Dexie rỗng. Đã bỏ — xem §11.5.
+
+### 11.5 Sau review: một lỗi Critical do chính bản vá này tạo ra
+
+Reviewer subagent tìm ra một lỗi **do bản vá tự sinh**, kiểu thầm lặng hơn lỗi
+đang chữa: `forceStealLock` chỉ set `currentChatId` mà không set `leaderCallbacks`
+(tab-lock.ts:128). Hệ quả: người dùng bấm "Chiếm quyền điều khiển" một lần, lần
+cướp thất bại; tab chính đóng băng, tab quay lại tự giành **thành công thật**
+(giữ Web Lock, bump epoch, heartbeat) nhưng `applyLockGrant` mang `requestId` cũ
+nên `reduceTabRuntimeState` bỏ — **tab giữ lock thật mà UI vẫn kẹt ở OBSERVER**,
+không log, và vòng tự phục hồi hỏng vĩnh viễn trong phiên đó. Đã sửa (một dòng) và
+khoá bằng test `tab-lock-visibility-recovery.test.ts`.
+
+Ngoài ra, một test trong bản vá đầu **bắn vòng lặp rỗng** (`visibilityListeners = []`
+rồi duyệt chính mảng vừa xoá) — xanh kể cả khi guard "tab ẩn" bị xoá. Đã viết lại,
+và **mutation check** xác nhận không còn test rỗng:
+
+| Mutation | Kết quả |
+|---|---|
+| Xoá `if (document.visibilityState !== 'visible') return;` (tab-lock.ts:236) | đúng 1 assert ĐỎ (test "tab ẩn thì không giành") |
+| Xoá `leaderCallbacks` trong `forceStealLock` | đúng 1 assert ĐỎ (test "callback mới nhất") |
+
+**Đã bỏ phần ẩn thẻ kill-switch.** Reviewer chỉ ra hai nguồn sự thật: panel đọc
+`db.schedules` (Dexie) còn daemon đọc `.vyen/schedules.json`
+(`lib/scheduler/runner.ts:52`). Lịch do CLI thêm vào file, hoặc IndexedDB bị xoá,
+vẫn chạy trong khi Dexie rỗng — ẩn thẻ lúc đó là **xoá van an toàn duy nhất khỏi
+UI**. Muốn ẩn thì phải hỏi `scheduler.list()` (`lib/desktop-bridge.ts:610`, đã có
+sẵn) trước; đó là một đợt riêng, không gộp vào bản vá 3 lỗi. Phần giữ lại: tô màu
+trung tính cho trạng thái chưa biết.
+
+**Ý kiến phản biện với reviewer** (không làm theo, có lý do):
+
+- "Steal có thể không settle nên mất vĩnh viễn khả năng tự phục hồi" — suy đoán.
+  Theo Web Locks, `steal: true` cấp lock ngay; `forceStealLock` resolve trong
+  callback. Nhánh không thành công vốn đã gọi `startObserverWatch` nên tự vũ trang
+  lại. Thêm timeout là sửa theo nỗi lo không có bằng chứng.
+- Guard `typeof document` trong `stopObserverWatch` — thừa: `visibilityHandler`
+  chỉ khác null khi `attachVisibilityRecovery` đã thấy `document` tồn tại.
+- Thêm `startObserverWatch` vào nhánh `FORCE_YIELD` — đúng là khoảng trống thật,
+  nhưng nó đổi hành vi (tab bị hạ xuống sẽ bắt đầu theo dõi và có thể hiện băng
+  "tab chính đóng băng"), ngoài phạm vi bản vá này. Ghi lại ở đây.
+
+### 11.6 Chưa kiểm được, cần soi bằng mắt
+
+- **Tooltip của nút model khi `disabled`.** Chromium/Electron có thể không bắt
+  hover trên form control bị vô hiệu hoá ⇒ `title` mới thêm không hiện đúng ở
+  trường hợp nó nhắm tới. Nếu vậy thì dùng `aria-disabled` + chặn `onClick`, hoặc
+  bọc trigger trong thẻ mang `title`. Test không soi được cái này.
+- **Tự giành lại lock với hai tab thật**: mở app ở hai tab, đóng băng tab A, quay
+  lại tab B, xác nhận B tự gõ được. Logic đã có test, hành vi thật thì chưa.
+- **Hai test đỏ có sẵn từ trước đợt này** (không phải do bản vá):
+  `tests/observer-banner-affordance.test.ts` (đòi 25 màu hex, `tailwind.config.ts`
+  có 29 từ commit `60b7eea`) và `tests/evidence-badge.test.ts:511` (dấu gạch dài
+  ở `components/chat/status-line.tsx:317`, từ `dbd671a`). Cần quyết định riêng:
+  số hex đúng hay 4 màu đó lẽ ra phải chuyển sang CSS var theo luật 3-file ở §3.1.

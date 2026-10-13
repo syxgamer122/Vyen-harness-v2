@@ -306,6 +306,12 @@ export function SchedulerPanel() {
       {/*
        * Dừng khẩn cấp toàn bộ lịch. Khi BẬT, mọi tick bị bỏ trống và
        * `executeScheduledRun` từ chối ở cửa — kể cả lệnh "Run now" thủ công.
+       *
+       * KHÔNG ẩn khi danh sách lịch rỗng: panel đọc `db.schedules` (Dexie) còn
+       * daemon đọc `.vyen/schedules.json` (`lib/scheduler/runner.ts:52`) — hai
+       * nguồn sự thật khác nhau. Lịch do CLI thêm vào file, hoặc IndexedDB bị
+       * xoá, vẫn chạy trong khi Dexie rỗng; ẩn thẻ lúc đó là **xoá van an toàn
+       * duy nhất** khỏi UI. Muốn ẩn thì phải hỏi `scheduler.list()` trước.
        */}
       <div className="settings-card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
@@ -315,7 +321,12 @@ export function SchedulerPanel() {
             ) : killSwitch === false ? (
               <CheckCircle2 size={13} className="text-success" />
             ) : (
-              <AlertCircle size={13} className={killSwitch === true ? 'text-danger' : 'text-warning'} />
+              /*
+               * `null` = CHƯA BIẾT, không phải đang lỗi (xem state ở trên). Tô
+               * màu cảnh báo ở trạng thái này là nói dối: app chỉ thiếu một lệnh
+               * đọc, scheduler có thể đang chạy bình thường.
+               */
+              <AlertCircle size={13} className={killSwitch === null ? 'text-tertiary' : killSwitch === true ? 'text-danger' : 'text-warning'} />
             )}
             <span>
               {!canKillSwitch

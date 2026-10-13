@@ -321,17 +321,25 @@ export function ModelSelector({
     );
   };
 
+  /*
+   * Nút bị khoá khi danh sách model rỗng (`disabled`, dưới đây), mà không lời
+   * nào trên nó thì người dùng chỉ thấy một ô xám vô lý. Nhánh rỗng nói đúng
+   * thao tác kế tiếp — cùng lối ra với nhắc ở `use-chat-orchestration.ts:5474`,
+   * chỉ chạy sớm hơn và ở đúng chỗ người dùng đang nhìn.
+   */
   const triggerTitle = retiredSelection
     ? 'Tính năng tạo ảnh/video đã ngừng hoạt động. Vui lòng chọn model lập trình/chat để tiếp tục.'
-    : current
-    ? [
-        current.id,
-        current.ctx !== undefined ? `${fmtCtx(current.ctx)} token` : undefined,
-        capsTitleText(current.caps),
-      ]
-        .filter(Boolean)
-        .join(' · ')
-    : undefined;
+    : models.length === 0
+      ? 'Chưa có model nào. Thêm nhà cung cấp ở Cài đặt rồi tải model về để chọn.'
+      : current
+        ? [
+            current.id,
+            current.ctx !== undefined ? `${fmtCtx(current.ctx)} token` : undefined,
+            capsTitleText(current.caps),
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        : 'Chưa chọn model. Bấm để xem danh sách model.';
 
   return (
     <div ref={wrapRef} className="relative min-w-0">
