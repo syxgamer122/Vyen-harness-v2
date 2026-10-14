@@ -8,6 +8,4 @@ export * from './skeletonizer';
 export * from './symbols';
 export * from './patcher';
 export * from './verifier';
-export * from './self-correct';
-export * from './roles';
 export * from './tools';

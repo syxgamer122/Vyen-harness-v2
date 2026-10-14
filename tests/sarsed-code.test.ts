@@ -6,9 +6,7 @@
  * 2. Multi-Language Symbol Indexing & Call Hierarchy Resolution.
  * 3. Transactional Multi-Hunk Semantic Patching with Indentation Alignment & Rollback.
  * 4. Structured Diagnostic Parsing (tsc, eslint, vitest).
- * 5. Closed SARS (Sense-Analyze-Refactor-Synthesize) Self-Correction Loop.
- * 6. Multi-Role Fleet (Architect, Coder, Verifier, Critic) Handover Lifecycle.
- * 7. Sarsed Tools (code_skeleton, code_symbols, code_patch, code_verify).
+ * 5. Sarsed Tools (code_skeleton, code_symbols, code_patch, code_verify).
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
@@ -16,8 +14,6 @@ import { CodeSkeletonizer } from '@/lib/sarsed/skeletonizer';
 import { SarsedSymbolIndex } from '@/lib/sarsed/symbols';
 import { SarsedPatcher } from '@/lib/sarsed/patcher';
 import { SarsedVerifier } from '@/lib/sarsed/verifier';
-import { SarsedSelfCorrectionLoop } from '@/lib/sarsed/self-correct';
-import { SarsRoleManager, SARS_ROLES } from '@/lib/sarsed/roles';
 import {
   executeCodeSkeleton,
   executeCodeSymbols,
@@ -437,70 +433,6 @@ D:/repo/lib/engine.ts:42:10 - error TS2554: Expected 2 arguments, but got 1.
     expect(report).toContain('### Verification Diagnostics');
     expect(report).toContain('[TSC] ERROR');
     expect(report).toContain('src/main.ts:10:5');
-  });
-});
-
-describe('Sarsed-Code: Autonomous Self-Correction Loop', () => {
-  it('detects errors and verifies repair iteratively', async () => {
-    const loop = new SarsedSelfCorrectionLoop();
-
-    let fileContent = 'const x: number = "wrong";';
-    let verifyCallCount = 0;
-
-    const mockExecutor = {
-      runVerification: async (_cmd: string) => {
-        verifyCallCount++;
-        if (fileContent.includes('"wrong"')) {
-          return {
-            exitCode: 1,
-            output: `file.ts(1,7): error TS2322: Type 'string' is not assignable to type 'number'.`,
-          };
-        }
-        return { exitCode: 0, output: 'Done in 0.2s' };
-      },
-      readFile: async (_path: string) => fileContent,
-      writeFile: async (_path: string, content: string) => {
-        fileContent = content;
-      },
-      generateRepairPatch: async (_diags: any[], current: string) => {
-        return {
-          file: 'file.ts',
-          hunks: [{ search: 'const x: number = "wrong";', replace: 'const x: number = 42;' }],
-          atomic: true,
-        };
-      },
-    };
-
-    const report = await loop.executeLoop('npm test', ['file.ts'], mockExecutor, 3);
-
-    expect(report.success).toBe(true);
-    expect(report.filesFixed).toContain('file.ts');
-    expect(fileContent).toBe('const x: number = 42;');
-    expect(verifyCallCount).toBe(2);
-  });
-});
-
-describe('Sarsed-Code: Multi-Role Fleet Management', () => {
-  it('manages role transitions and structured context handovers', () => {
-    const manager = new SarsRoleManager();
-    expect(manager.getCurrentRole()).toBe('architect');
-
-    const architectContract = manager.getRoleContract();
-    expect(architectContract.role).toBe('architect');
-    expect(architectContract.responsibilities.length).toBeGreaterThan(0);
-
-    // Handover to coder
-    const handover = manager.handover('coder', {
-      contextSummary: 'Blueprint created for cache timeout fix.',
-      modifiedFiles: ['lib/cache.ts'],
-      targetInvariants: ['Must not leak timers', '100% tests pass'],
-      artifacts: { blueprintId: 'bp-001' },
-    });
-
-    expect(manager.getCurrentRole()).toBe('coder');
-    expect(handover.fromRole).toBe('architect');
-    expect(handover.toRole).toBe('coder');
-    expect(manager.getHandoverHistory().length).toBe(1);
   });
 });
 

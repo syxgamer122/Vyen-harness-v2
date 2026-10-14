@@ -16,7 +16,7 @@ import {
   PROVIDER_NO_KEY_SENTINEL,
   type UpstreamScope,
 } from '@/lib/api-keys';
-import { capabilityFor, mediaKindOf, resolveChainFor } from '@/lib/models';
+import { capabilityFor, resolveChainFor } from '@/lib/models';
 import { validateProviderBaseUrl, providerNeedsApiKey, THINKING_LEVELS, supportsThinkingLevel, type ThinkingLevel } from '@/lib/provider-url';
 import { getReasoningCapability } from '@/lib/model-reasoning-cache';
 import { resolveNearestEffort } from '@/lib/reasoning-capability';
@@ -198,13 +198,12 @@ function extractDelta(part: unknown): string {
 /**
  * Model tạo ảnh/video của provider (gpt-image, flux, sora…) bị chặn trước mọi
  * call upstream: app không có route tạo ảnh/video, nên chọn model đó chỉ nhận
- * lỗi 410. `mediaKindOf` xử lý model khai báo media rõ ràng; phần còn lại nhận
- * diện theo tên qua regex dùng chung (`lib/media-models.ts`) — cùng nguồn với
- * picker để chọn ở UI và bị chặn ở server là một tiêu chí.
+ * lỗi 410. Nhận diện theo tên qua regex dùng chung (`lib/media-models.ts`) — cùng
+ * nguồn với picker để chọn ở UI và bị chặn ở server là một tiêu chí.
  */
 function retiredMediaModel(modelId: string | undefined): boolean {
   if (!modelId) return false;
-  return Boolean(mediaKindOf(modelId) ?? detectMediaKind(modelId));
+  return Boolean(detectMediaKind(modelId));
 }
 
 function mediaGenerationRetired(requestId: string) {

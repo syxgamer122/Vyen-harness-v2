@@ -102,39 +102,3 @@ export interface VerificationResult {
   output: string;
   durationMs: number;
 }
-
-export interface SelfCorrectionAttempt {
-  attempt: number;
-  diagnostics: CodeDiagnostic[];
-  patchProposed?: SemanticPatch;
-  success: boolean;
-  commentary: string;
-}
-
-export interface SelfCorrectionReport {
-  success: boolean;
-  totalAttempts: number;
-  attempts: SelfCorrectionAttempt[];
-  finalDiagnostics: CodeDiagnostic[];
-  filesFixed: string[];
-}
-
-export type SarsRole = 'architect' | 'coder' | 'verifier' | 'critic';
-
-export interface SarsRoleContract {
-  role: SarsRole;
-  title: string;
-  responsibilities: string[];
-  allowedActions: string[];
-  systemPromptAddition: string;
-}
-
-export interface SarsRoleHandover {
-  fromRole: SarsRole;
-  toRole: SarsRole;
-  contextSummary: string;
-  modifiedFiles: string[];
-  targetInvariants: string[];
-  artifacts: Record<string, unknown>;
-  timestamp: number;
-}

@@ -13,9 +13,6 @@
  *     coi như không xem ảnh / không đọc PDF (xem `lib/vision-bridge.ts`).
  */
 
-/** Loại media của model (ảnh/video) — tính năng đã ngừng, chỉ còn để chặn id cũ. */
-export type MediaKind = 'image' | 'video';
-
 /**
  * Capability của model mà app dùng để quyết định cách gửi ảnh/PDF và tham số
  * chat. Model BYOK không khai báo capability trong `/v1/models`, nên đây là
@@ -85,16 +82,6 @@ export function capabilityFor(modelId: string | null | undefined): ModelCapabili
     ...DEFAULT_CAPABILITY,
     supportsTemperature: !NO_TEMPERATURE.test(id),
   };
-}
-
-/**
- * Model có nhận ảnh/PDF không. Model không khai báo → coi như không (bảo thủ,
- * xem `defaultCapabilityFor`).
- */
-export function mediaKindOf(_modelId: string | null | undefined): MediaKind | undefined {
-  /* Tính năng tạo ảnh/video đã gỡ khỏi dự án; hàm giữ lại vì app/api/chat
-     còn dùng để chặn id media cũ. Không có model nào khai báo media nữa. */
-  return undefined;
 }
 
 /**

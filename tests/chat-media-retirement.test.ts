@@ -95,11 +95,6 @@ describe('chat route media retirement', () => {
     await expectRetired({ model: 'gpt-4o', visionModel: 'qwen-vl' }, false);
   });
 
-  it('rejects an explicitly declared media model with an opaque id', async () => {
-    vi.spyOn(models, 'mediaKindOf').mockImplementation((id) => id === 'opaque-model' ? 'image' : undefined);
-    await expectRetired({ model: 'opaque-model' });
-  });
-
   it('rejects a generation model passed as the vision bridge model', async () => {
     await expectRetired({ model: 'o1-mini', visionModel: 'gpt-image-1' });
   });
