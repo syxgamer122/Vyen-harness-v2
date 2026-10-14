@@ -439,7 +439,6 @@ interface TaskGroupSpec {
 
 function TaskMenu({ groups }: { groups: TaskGroupSpec[] }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -512,7 +511,7 @@ function TaskMenu({ groups }: { groups: TaskGroupSpec[] }) {
   const activeCount = groups.reduce((acc, g) => acc + g.items.filter((t) => t.active).length, 0);
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div className="relative">
       <ToolbarButton
         icon={open ? X : MoreHorizontal}
         active={activeCount > 0}

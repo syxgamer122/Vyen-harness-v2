@@ -28,7 +28,6 @@ const OVERLAY_FILES = [
   'components/composer.tsx',
   'components/model-selector.tsx',
   'components/chat-export-menu.tsx',
-  'components/chat/stream-bubble.tsx',
 ];
 
 describe('A11y Contract & Accessibility Compliance', () => {

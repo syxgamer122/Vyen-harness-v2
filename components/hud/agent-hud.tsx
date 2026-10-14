@@ -123,7 +123,7 @@ function HudRow({ lane }: { lane: HudLane }) {
         </>
       )}
       <Dot />
-      <EvidenceBadge level={lane.evidence} size="md" className="shrink-0" />
+      <EvidenceBadge level={lane.evidence} className="shrink-0" />
     </div>
   );
 }

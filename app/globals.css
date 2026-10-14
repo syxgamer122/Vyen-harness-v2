@@ -112,18 +112,10 @@
     --status-success: 22 122 74; /* = --success */
     --status-warning: 154 98 6; /* = --warning */
     --status-error: 179 38 30; /* = --danger */
-    --surface: 252 252 252; /* = --bg-base — nền html/body */
-    --surface-raised: 245 245 245; /* = --bg-raised */
-    --surface-bubble: 255 255 255; /* = --bg-surface */
-    --surface-muted: 245 245 245; /* = --bg-raised */
     --surface-code: 245 245 245; /* = --bg-raised */
     --brand-lime: 124 230 82; /* lime của logo — TRANG TRÍ, 1.9:1, không làm chữ */
     --brand-mid: 90 191 90; /* vòng giữa */
-    --brand: 18 102 68; /* xanh đậm của logo, 3.4:1 — đạt ngưỡng vật thể đồ hoạ */
     --brand-deep: 17 79 54; /* màu mặt (mắt, miệng), 5.4:1 */
-    --brand-accent: 179 38 30; /* = --danger */
-    --foreground: 24 24 27; /* = --text-primary */
-    --muted-foreground: 87 87 87; /* = --text-secondary */
   }
 
   /*
@@ -453,9 +445,6 @@ html[data-animations='off'] *::after {
     @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-ui font-sans
       text-primary transition-colors duration-150 hover:bg-raised hover:text-primary;
   }
-  .menu-item-danger {
-    @apply text-danger hover:bg-danger/10 hover:text-danger;
-  }
 
   /*
    * Ô nhập — `.well`: bóng nằm trong viền nên mắt đọc ngay đây là chỗ "khoét
@@ -607,10 +596,6 @@ html[data-animations='off'] *::after {
     @apply notice border-danger/40 bg-raised text-danger;
   }
 
-  .claude-input {
-    @apply field-sm;
-  }
-
   .no-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -632,11 +617,6 @@ html[data-animations='off'] *::after {
    */
   .settings-card {
     @apply lift-md rounded-xl border border-subtle bg-surface;
-  }
-  .settings-card-head {
-    @apply flex items-start gap-2.5 px-4 py-3;
-    background-color: rgb(var(--bg-raised) / 0.5);
-    border-bottom: 1px solid rgb(var(--border-subtle));
   }
   .settings-card-body {
     @apply space-y-3 px-4 py-3;
@@ -990,21 +970,3 @@ html[data-animations='off'] *::after {
   text-rendering: auto;
 }
 
-/* ------------------------------------------------------------------ */
-/* Vyen Diff Styling                                                   */
-/* ------------------------------------------------------------------ */
-/*
- * Nền nét diff chỉ nâng 8% — đủ để mắt quét dọc cột mà không tranh chấp với
- * chữ. Màu CHỮ mang thông tin (thêm / bớt / giữ nguyên), nền chỉ nhấn.
- */
-.diff-line-added {
-  color: rgb(var(--diff-add));
-  background-color: rgb(var(--diff-add) / 0.08);
-}
-.diff-line-removed {
-  color: rgb(var(--diff-del));
-  background-color: rgb(var(--diff-del) / 0.08);
-}
-.diff-line-context {
-  color: rgb(var(--diff-ctx));
-}

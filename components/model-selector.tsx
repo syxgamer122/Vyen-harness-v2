@@ -73,7 +73,6 @@ export function ModelSelector({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
-  const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -342,7 +341,7 @@ export function ModelSelector({
         : 'Chưa chọn model. Bấm để xem danh sách model.';
 
   return (
-    <div ref={wrapRef} className="relative min-w-0">
+    <div className="relative min-w-0">
       <button
         ref={triggerRef}
         type="button"

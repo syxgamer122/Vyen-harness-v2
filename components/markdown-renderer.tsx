@@ -378,7 +378,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
             href={href}
             target="_blank"
             rel="noreferrer noopener nofollow"
-            className="break-words text-brand underline-offset-2 hover:underline"
+            className="break-words text-accent underline-offset-2 hover:underline"
           >
             {children}
           </a>

@@ -323,7 +323,6 @@ const EMERGENCY_LIMITS = {
 } as const;
 
 /** Tool nào coi là GHI, tool nào coi là ĐỌC — quyết định nhóm hiển thị. */
-const WRITE_TOOLS = new Set(['fs_write', 'fs_edit']);
 const READ_TOOLS = new Set(['fs_read', 'fs_list', 'fs_search']);
 
 export interface FileOpsSummary {

@@ -81,32 +81,6 @@ export function useFxEnabled(): boolean {
 }
 
 /* ------------------------------------------------------------------ */
-/* ------------------------------------------------------------------ */
-/* TextShimmer — vệt sáng quét qua chữ đang chờ                        */
-/* ------------------------------------------------------------------ */
-
-export function TextShimmer({ text, className = '' }: { text: string; className?: string }) {
-  const fx = useFxEnabled();
-  if (!fx) return <span className={className}>{text}</span>;
-  return <span className={`fx-shimmer-text ${className}`}>{text}</span>;
-}
-
-/* ------------------------------------------------------------------ */
-/* PulseGlow — hiệu ứng viền thở nhẹ quanh Composer khi active         */
-/* ------------------------------------------------------------------ */
-
-export function PulseGlow({ active = true, className = '' }: { active?: boolean; className?: string }) {
-  const fx = useFxEnabled();
-  if (!fx || !active) return null;
-  return (
-    <span
-      aria-hidden="true"
-      className={`pointer-events-none absolute -inset-[1px] rounded-[inherit] transition-opacity duration-300 animate-pulse ring-1 ring-accent/30 ${className}`}
-    />
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Haptics — rung nhẹ mobile (navigator.vibrate), no-op nơi không hỗ trợ */
 /* ------------------------------------------------------------------ */
 

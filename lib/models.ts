@@ -141,16 +141,3 @@ export function resolveChainFor(modelId: string): readonly string[] {
   return Object.freeze(chain);
 }
 
-export function buildGenerationParams(
-  modelId: string,
-  requested: { temperature?: number; maxOutputTokens?: number },
-): { temperature?: number; maxOutputTokens: number } {
-  const capability = capabilityFor(modelId);
-  return {
-    temperature: capability.supportsTemperature ? requested.temperature : undefined,
-    maxOutputTokens: Math.min(
-      requested.maxOutputTokens ?? capability.maxOutputTokens,
-      capability.maxOutputTokens,
-    ),
-  };
-}

@@ -970,13 +970,12 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
   /** Ref đồng bộ để submitTurn gate đồng bộ (state có thể stale 1 render). */
   const webBusyRef = useRef(false);
   /**
-   * P3.1 — Hàng đợi steering/follow-up (ref đồng bộ + state render chip).
-   * Ref là nguồn sự thật cho onFinish drain; state chỉ để render + đếm.
+   * P3.1 — Hàng đợi steering/follow-up.
+   * Ref là nguồn sự thật cho onFinish drain; không có state đi kèm vì chip đếm
+   * đã đọc trực tiếp `steeringRef.current.length` / `followUpRef.current.length`.
    */
   const steeringRef = useRef<string[]>([]);
   const followUpRef = useRef<string[]>([]);
-  const [steeringCount, setSteeringCount] = useState(0);
-  const [followUpCount, setFollowUpCount] = useState(0);
   const steeringModeRef = useRef<QueueMode>('one-at-a-time');
   const followUpModeRef = useRef<QueueMode>('one-at-a-time');
   useEffect(() => {

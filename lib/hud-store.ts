@@ -37,24 +37,11 @@ export interface HudLane {
 
 interface HudState {
   lanes: Record<string, HudLane>;
-  activeLaneId: string | null;
   upsertLane: (lane: Partial<HudLane> & { laneId: string }) => void;
-  updateTelemetry: (
-    laneId: string,
-    usage: { promptTokens?: number; completionTokens?: number; cachedPromptTokens?: number },
-    elapsedSec?: number,
-  ) => void;
-  recordParallelShot: (laneId: string, shotCount: number) => void;
-  updateEvidence: (laneId: string, evidence: EvidenceLevel) => void;
-  incrementTurn: (laneId: string) => void;
-  removeLane: (laneId: string) => void;
-  clearLanes: () => void;
-  setActiveLane: (laneId: string | null) => void;
 }
 
-export const useHudStore = create<HudState>((set, get) => ({
+export const useHudStore = create<HudState>((set) => ({
   lanes: {},
-  activeLaneId: null,
 
   upsertLane: (input) => {
     set((state) => {
@@ -102,103 +89,7 @@ export const useHudStore = create<HudState>((set, get) => ({
 
       return {
         lanes: { ...state.lanes, [input.laneId]: updated },
-        activeLaneId: state.activeLaneId ?? input.laneId,
       };
     });
-  },
-
-  updateTelemetry: (laneId, usage, elapsedSec) => {
-    set((state) => {
-      const lane = state.lanes[laneId];
-      if (!lane) return state;
-
-      const pTokens = usage.promptTokens ?? 0;
-      const cTokens = usage.completionTokens ?? 0;
-      const cachedTokens = usage.cachedPromptTokens ?? 0;
-
-      const tokensIn = lane.tokensIn + pTokens;
-      const tokensOut = lane.tokensOut + cTokens;
-      const cachedTokensIn = (lane.cachedTokensIn ?? 0) + cachedTokens;
-
-      const costUsd = calculateModelCost(lane.model, {
-        promptTokens: tokensIn,
-        completionTokens: tokensOut,
-        cachedPromptTokens: cachedTokensIn,
-      });
-
-      const updated: HudLane = {
-        ...lane,
-        tokensIn,
-        tokensOut,
-        cachedTokensIn,
-        costUsd,
-        elapsedSec: elapsedSec !== undefined ? elapsedSec : lane.elapsedSec,
-        updatedAt: Date.now(),
-      };
-
-      return {
-        lanes: { ...state.lanes, [laneId]: updated },
-      };
-    });
-  },
-
-  recordParallelShot: (laneId, shotCount) => {
-    set((state) => {
-      const lane = state.lanes[laneId];
-      if (!lane) return state;
-      return {
-        lanes: {
-          ...state.lanes,
-          [laneId]: {
-            ...lane,
-            parallelShots: (lane.parallelShots ?? 0) + Math.max(1, shotCount),
-            updatedAt: Date.now(),
-          },
-        },
-      };
-    });
-  },
-
-  updateEvidence: (laneId, evidence) => {
-    set((state) => {
-      const lane = state.lanes[laneId];
-      if (!lane) return state;
-      return {
-        lanes: {
-          ...state.lanes,
-          [laneId]: { ...lane, evidence, updatedAt: Date.now() },
-        },
-      };
-    });
-  },
-
-  incrementTurn: (laneId) => {
-    set((state) => {
-      const lane = state.lanes[laneId];
-      if (!lane) return state;
-      return {
-        lanes: {
-          ...state.lanes,
-          [laneId]: { ...lane, turn: lane.turn + 1, updatedAt: Date.now() },
-        },
-      };
-    });
-  },
-
-  removeLane: (laneId) => {
-    set((state) => {
-      const next = { ...state.lanes };
-      delete next[laneId];
-      const nextActive = state.activeLaneId === laneId ? Object.keys(next)[0] ?? null : state.activeLaneId;
-      return { lanes: next, activeLaneId: nextActive };
-    });
-  },
-
-  clearLanes: () => {
-    set({ lanes: {}, activeLaneId: null });
-  },
-
-  setActiveLane: (laneId) => {
-    set({ activeLaneId: laneId });
   },
 }));

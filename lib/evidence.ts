@@ -173,53 +173,45 @@ export function transitionEvidence(
 
 /**
  * Trả về nhãn định dạng chuẩn hiển thị trên UI badge.
+ *
+ * Trước 2026-10-14 hàm này còn trả thêm `stage` + `cert` ("Kế hoạch" / "chưa
+ * chạy") bên cạnh `badgeText` ("Kế hoạch · chưa chạy"). Cả hai là literal viết
+ * tay riêng — **không** phải `stage`/`cert` được ghép lại thành `badgeText` —
+ * nên chúng chỉ là bản sao của hai nửa trong `badgeText`, không component nào
+ * đọc tới, chỉ có test tự assert lấy chúng. Đã bỏ khỏi hợp đồng trả về.
  */
 export function describeEvidence(level: EvidenceLevel): {
-  stage: string;
-  cert: string;
   badgeText: string;
   variant: 'default' | 'running' | 'warning' | 'success' | 'danger';
 } {
   switch (level) {
     case 'prepared':
       return {
-        stage: 'Kế hoạch',
-        cert: 'chưa chạy',
         badgeText: 'Kế hoạch · chưa chạy',
         variant: 'default',
       };
     case 'running':
       return {
-        stage: 'Code',
-        cert: 'đang chạy',
         badgeText: 'Code · đang chạy',
         variant: 'running',
       };
     case 'reported_done':
       return {
-        stage: 'Code',
-        cert: 'đã báo xong',
         badgeText: 'Code · đã báo xong',
         variant: 'warning',
       };
     case 'verified':
       return {
-        stage: 'Kiểm thử',
-        cert: 'đã xác minh',
         badgeText: 'Kiểm thử · đã xác minh',
         variant: 'success',
       };
     case 'blocked':
       return {
-        stage: 'Bị chặn',
-        cert: 'bị chặn',
         badgeText: 'Bị chặn',
         variant: 'danger',
       };
     case 'failed':
       return {
-        stage: 'Thất bại',
-        cert: 'thất bại',
         badgeText: 'Thất bại',
         variant: 'danger',
       };

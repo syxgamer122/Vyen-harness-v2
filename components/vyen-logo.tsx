@@ -76,13 +76,10 @@ export function VyenMark({ size = 16, className }: VyenMarkProps) {
 export interface VyenLogoProps {
   /** `sm` cho sidebar, `lg` cho empty state. */
   size?: 'sm' | 'lg';
-  /** Hiển thị chữ "Vyen" bên cạnh (sm) hoặc bên dưới (lg). */
-  withWordmark?: boolean;
-  className?: string;
 }
 
 /** Dấu hiệu + wordmark, dùng ở sidebar và trạng thái rỗng. */
-export function VyenLogo({ size = 'sm', withWordmark = true, className }: VyenLogoProps) {
+export function VyenLogo({ size = 'sm' }: VyenLogoProps) {
   const isLarge = size === 'lg';
 
   const tile = (
@@ -97,11 +94,9 @@ export function VyenLogo({ size = 'sm', withWordmark = true, className }: VyenLo
     </div>
   );
 
-  if (!withWordmark) return <div className={className}>{tile}</div>;
-
   if (isLarge) {
     return (
-      <div className={`flex flex-col items-center ${className ?? ''}`}>
+      <div className="flex flex-col items-center">
         {tile}
         <div className="mt-5">
           <span className="uic text-[32px] font-bold tracking-[0.05em] text-text-primary">Vyen</span>
@@ -114,7 +109,7 @@ export function VyenLogo({ size = 'sm', withWordmark = true, className }: VyenLo
   }
 
   return (
-    <div className={`flex items-center gap-2.5 ${className ?? ''}`}>
+    <div className="flex items-center gap-2.5">
       {tile}
       <div className="leading-tight">
         <div className="flex items-center gap-1.5">

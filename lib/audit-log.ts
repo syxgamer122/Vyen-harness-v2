@@ -141,7 +141,7 @@ function newAuditId(): string {
  * ở `~/.vyen/audit/anchor.log` — ngoài tầm ghi file của agent. Có thể override
  * bằng biến môi trường cho người dùng muốn giữ ở nơi khác (vd ổ USB).
  */
-export function getDiskAnchorPath(): string {
+function getDiskAnchorPath(): string {
   const override =
     typeof process !== 'undefined' && process.env
       ? process.env.VYEN_AUDIT_ANCHOR_PATH
@@ -206,7 +206,7 @@ export async function appendDiskAnchor(
 /**
  * Prune audit log entries older than retention limit.
  */
-export async function pruneAuditLogs(maxEntries: number = AUDIT_LOG_RETENTION_CAP): Promise<number> {
+async function pruneAuditLogs(maxEntries: number = AUDIT_LOG_RETENTION_CAP): Promise<number> {
   try {
     const totalCount = await db.auditLogs.count();
     if (totalCount <= maxEntries) return 0;
@@ -440,8 +440,6 @@ export async function verifyChain(entries?: StoredAuditLogEntry[]): Promise<Chai
     };
   }
 }
-
-export const verifyAuditLogChain = verifyChain;
 
 export interface AuditLogFilter {
   tool?: string;

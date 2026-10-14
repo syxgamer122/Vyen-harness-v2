@@ -113,7 +113,6 @@ const hex = {
 const legacyAlias = {
   /* Trạng thái cũ → bảng accent/status mới. */
   'cyan-glow': hex.accent,
-  'amber-warn': hex.warning,
   'rose-danger': hex.danger,
 
   /*
@@ -127,24 +126,6 @@ const legacyAlias = {
    * không đổi màu gì được vẽ ra. Giữ lại là đẻ thêm cách gọi cho cùng một màu.
    */
 
-  /*
-   * THANG ZINC LẬT BẬC — alias cho 5 chỗ dùng sót lại.
-   *
-   * `zinc` trước đây là một thang màu BỊ LẬT (zinc-50 tối nhất, zinc-950 sáng
-   * nhất) để `text-zinc-800` trông sáng trên nền tối. Cơ chế đó giấu nhầm
-   * cả những chỗ dùng sai — nên thang đã bị gỡ khỏi hệ màu.
-   *
-   * Chỉ giữ lại ĐÚNG 3 bậc còn code gọi tới, map theo vai trò thật sự:
-   *   zinc-200 — viền ảnh trong markdown-renderer → viền mảnh
-   *   zinc-500 — chữ "đang tải" ở app/page.tsx   → chữ phụ
-   *   zinc-600 — chữ fallback khi KaTeX lỗi      → chữ phụ
-   * Xoá khi grep `zinc-` trong components/ app/ không còn kết quả.
-   */
-  zinc: {
-    200: hex.subtle,
-    500: hex.tertiary,
-    600: hex.tertiary,
-  },
 } as const
 
 /**
@@ -238,7 +219,6 @@ const config: Config = {
         'panel-bg': token('--panel-bg'),
         'panel-soft': token('--panel-soft'),
         'border-hover': token('--border-hover'),
-        'border-subtle': token('--border-subtle'),
         'text-primary': token('--text-primary'),
         'text-muted': token('--text-muted'),
         'accent-steel': token('--accent-steel'),

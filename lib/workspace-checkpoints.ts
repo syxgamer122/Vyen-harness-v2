@@ -17,8 +17,6 @@
 
 import { db, type WorkspaceSnapshot, type WsSnapshotFile } from '@/lib/db';
 
-/** Trần ký tự mỗi file đưa vào snapshot (text ≈ bytes với UTF-8 ASCII code). */
-export const WS_MAX_FILE_BYTES = 512_000;
 /** Trần số file mỗi turn — model fanning ra chục file là dấu hiệu mất kiểm soát. */
 export const WS_MAX_FILES_PER_SNAPSHOT = 12;
 /** Trần snapshot lưu mỗi chat — cũ nhất bị prune (ưu tiên bản đã undone). */
@@ -159,14 +157,6 @@ export function planRestore(snapshot: WorkspaceSnapshot): RestoreOp[] {
 /* ------------------------------------------------------------------ */
 /* Tầng DB mỏng                                                        */
 /* ------------------------------------------------------------------ */
-
-export async function listSnapshots(chatId: string): Promise<WorkspaceSnapshot[]> {
-  try {
-    return await db.wsSnapshots.where('chatId').equals(chatId).toArray();
-  } catch {
-    return [];
-  }
-}
 
 /** Put snapshot của turn + prune trần ngay trong cùng transaction. */
 export async function saveTurnCapture(turn: TurnCapture): Promise<WorkspaceSnapshot | null> {

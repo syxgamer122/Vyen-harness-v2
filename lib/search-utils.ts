@@ -48,8 +48,8 @@ export function foldText(text: string): string {
   return out;
 }
 
-export const MIN_TOKEN_LENGTH = 2;
-export const MAX_TOKENS_PER_MESSAGE = 600;
+const MIN_TOKEN_LENGTH = 2;
+const MAX_TOKENS_PER_MESSAGE = 600;
 
 /**
  * Tách nội dung thành danh sách token duy nhất, đã fold.

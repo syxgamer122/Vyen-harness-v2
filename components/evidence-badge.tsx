@@ -7,12 +7,6 @@ import { CheckCircle2, Play, AlertTriangle, XCircle, Circle } from 'lucide-react
 interface EvidenceBadgeProps {
   level?: EvidenceLevel | string;
   className?: string;
-  /**
-   * CỐ Ý không còn tác dụng: cả `sm` và `md` đều là `text-meta` (xem `sizeClass`).
-   * Giữ lại prop cho call site cũ không phải sửa — bỏ nó là đổi hợp đồng API của
-   * một component đang được dùng ở năm chỗ, việc đó thuộc đợt migrate riêng.
-   */
-  size?: 'sm' | 'md';
 }
 
 /**

@@ -712,7 +712,7 @@ export const MessageItem = memo(
                     : (m as any).status === 'aborted'
                       ? 'blocked'
                       : 'reported_done');
-                return <EvidenceBadge level={level} size="sm" />;
+                return <EvidenceBadge level={level} />;
               })()}
             </div>
           )}

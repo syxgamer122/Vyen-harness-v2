@@ -159,8 +159,7 @@ describe('describeEvidence — 6 bậc thang bằng chứng, nhãn tiếng Việ
     for (const level of LEVELS) {
       const info = describeEvidence(level);
       expect(info, `${level}: switch không phủ bậc này`).toBeDefined();
-      expect(info.stage.length, `${level}: stage rỗng`).toBeGreaterThan(0);
-      expect(info.cert.length, `${level}: cert rỗng`).toBeGreaterThan(0);
+      expect(info.badgeText.length, `${level}: badgeText rỗng`).toBeGreaterThan(0);
     }
   });
 
@@ -214,10 +213,8 @@ describe('describeEvidence — 6 bậc thang bằng chứng, nhãn tiếng Việ
    */
   it('không nhãn nào chứa dấu gạch dài', () => {
     for (const level of LEVELS) {
-      const { stage, cert, badgeText } = describeEvidence(level);
-      for (const text of [stage, cert, badgeText]) {
-        expect(text, `${level}: "${text}" chứa dấu gạch dài`).not.toContain(EM_DASH);
-      }
+      const { badgeText } = describeEvidence(level);
+      expect(badgeText, `${level}: "${badgeText}" chứa dấu gạch dài`).not.toContain(EM_DASH);
     }
   });
 

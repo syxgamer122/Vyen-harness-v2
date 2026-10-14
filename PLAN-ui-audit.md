@@ -176,3 +176,371 @@ session trước đã xoá `tests/telemetry-tab.test.ts` — không phải do đ
    session khác đang sửa song song, **không phải lỗi đợt này** (timestamp cho thấy
    file bị ghi đúng lúc tôi kiểm, và lỗi đổi từ `temporalContext` sang module
    `context` không tồn tại). Phần UI verify độc lập: 167/167 xanh.
+
+---
+---
+
+# Đợt audit 2 — 2026-10-13
+
+Audit READ-ONLY, chưa sửa file UI nào. 7 subagent, mỗi agent một vùng file không
+overlap. Mọi claim dưới đây được gắn nhãn **ĐÃ TỰ KIỂM** (tôi tự đọc code hoặc
+grep lại) hoặc **CHƯA KIỂM** (chỉ có báo cáo agent, phải đọc lại trước khi sửa).
+Quy tắc của đợt này: **claim CHƯA KIỂM thì không sửa theo.**
+
+## Phạm vi
+
+| Lô | Vùng | File | Trạng thái |
+|---|---|---|---|
+| A | Shell & điều hướng | 18 | xong |
+| B | Transcript | 24 | xong (chạy lại lần 2) |
+| C | Composer & ngữ cảnh | 11 | xong |
+| D | Settings & panel | 44 | xong (chạy lại lần 2) |
+| E | Overlay & a11y | 18 | xong |
+| F | Hệ thiết kế & token | 9 | xong |
+| G | Dead code sweep | toàn repo | **đang chạy nền** |
+
+## Đánh giá chung
+
+Cái làm tốt, nói trước để không sửa nhầm: số 7 ràng buộc cứng **giữ được ở bề
+mặt**. Đếm lại: `box-shadow` toàn repo = **4 chỗ** (đúng ràng buộc #1), bán kính
+bất đối xứng = **0** (#2), bậc px tự chế lệch thang 6 bậc = **0** (#3), modifier
+opacity trên token chữ = **0** (#4), biến thể `dark:` = **0** (#6). 6 dialog đều
+có `role="dialog"` + `aria-modal` + nhãn và đều lấy z từ `Z_CLASS`. Backdrop nuốt
+click đúng kiểu `stopPropagation`, Escape luôn là hành động AN TOÀN, focus mở đúng
+nút huỷ ở cả `DiffConfirm` lẫn `ShellConfirm`.
+
+Điểm đáng lo nhất về mặt kỹ thuật **không nằm ở UI**, mà ở chỗ hệ thống tự đặt
+tên sai dẫn tới hành vi sai: bảng phân quyền tool.
+
+---
+
+## Bug thật
+
+### P0 — Chặn 1 tool trong bảng Cài đặt âm thầm chặn cả nhóm · ĐÃ TỰ KIỂM
+
+`lib/tool-permissions.ts:265` đọc `permissions[toolName]`, `:281` đọc
+`permissions[category]` — **cùng một khoá phẳng**. Mà:
+
+- `lib/tool-catalog.ts:31` — `ALL_TOOL_CATEGORIES` chứa đúng ba tên `fs_read`,
+  `fs_write`, `delegate`
+- `lib/tool-catalog.ts:199,245,489` — có tool **trùng tên** với category của nó:
+  `name: 'fs_read'`, `name: 'fs_write'`, `name: 'delegate'`
+
+⇒ Bấm "Chặn" ở đúng hàng tool `fs_read` cũng tạo khoá `fs_read`, mà khoá đó lại
+là override của **category** `fs_read` ⇒ `fs_list`, `fs_search`, `skill_load`,
+`code_skeleton`, `code_symbols`, `code_verify` (6 tool) bị chặn theo. Tương tự
+`fs_write` ⇒ `code_patch` + `fs_edit`.
+
+Đây là **tính năng an toàn ghi sai phạm vi**, trên màn hình để người dùng tin.
+Cần namespace (vd `cat:` / `tool:`) cho một nhánh + `validateToolPermissions`
+dọn khoá cũ.
+
+### P1 — Escape trong ô nhập xoá vĩnh viễn tin đã queue · ĐÃ TỰ KIỂM
+
+`components/composer.tsx:1027-1030`: `if (e.key === 'Escape') { onStop(); return; }`
+— không guard `isStreaming`, không `preventDefault`, không hỏi.
+`react/use-chat-orchestration.ts:4150-4151`:
+`steeringRef.current = []; followUpRef.current = [];` chỉ giữ lại **một** tin mới
+nhất, phần còn lại mất. Escape là phím phản xạ để đóng mọi thứ, người dùng bấm
+một cái là mất 4 tin, chỉ có toast 4s.
+
+### P1 — `.field-label` khai ngoài `@layer`, đè 18 call site · ĐÃ TỰ KIỂM
+
+`app/globals.css:364` (`.field-label`), trong khi `@layer base` kết ở `:200` và
+`@layer components` mở ở `:384` ⇒ nằm ngoài **mọi** layer. Nó khai
+`font-size: 0.875rem` + `font-weight: 500` + `color` + `letter-spacing`.
+Agent F đo trên CSS đã build trong `.next/`: `grep -c "@layer"` = **0** ⇒ hệ
+không có cascade layer thật, thắng bằng thứ tự. `.text-read` ở vị trí 3421,
+`.field-label` ở 3882 ⇒ thắng.
+
+Call site bị vô hiệi (18), nặng nhất: `components/settings/data-tab.tsx:178`
+(`field-label text-read text-danger` ⇒ "Vùng nguy hiểm" hiện 14px mực đen thay vì
+16px đỏ). Còn: `appearance-tab.tsx:53,92,149`, `auto-backup-section.tsx:74`,
+`data-tab.tsx:86,169`, `memories-section.tsx:107`, `providers-tab.tsx:36`,
+`safety-tab.tsx:43`, `slash-commands-section.tsx:67,77,104`,
+`settings-agent-memory.tsx:85`, `settings-skills.tsx:85,144`,
+`mcp/mcp-settings-panel.tsx:418`, `mcp/tool-grants-panel.tsx:97`,
+`provider-manager.tsx:428`.
+
+Cùng loại, còn khai ngoài layer và **đang** gây hậu quả: `.claude-prose table`
+(`globals.css:814`, `font-size: 13px` đè `text-sm` ở `markdown-renderer.tsx:390`),
+`.fx-shimmer-text` (`:950`), `.diff-line-*` (`:1000-1009`).
+
+Sửa `.field-label` giống hệt cách `.uic` đã được sửa. Nhưng **đừng chỉ vá từng
+cái** — assertion hiện chỉ canh `.uic`; phải thêm assertion quét *mọi* recipe khai
+`font-*`/`text-*`/`color` xem có nằm trong `@layer` không.
+
+### P1 — Focus trap không bắt được `<summary>` · ĐÃ TỰ KIỂM
+
+`lib/hooks/use-focus-trap.ts:5-6`: `FOCUSABLE_SELECTOR` không có `summary`.
+`<summary>` điều hướng bằng UA chứ không qua `tabindex` nên selector không khớp.
+
+Hậu quả tại `components/workspace-checkpoints.tsx:252` (mỗi file là một `<summary>`):
+Tab tới cuối rồi `preventDefault()` quay về đầu ⇒ **người dùng bàn phím không mở
+được nội dung diff sẽ bị ghi đè/xoá mà không xem được**. `app/globals.css:197`
+còn khai `summary { cursor: pointer }` — hệ coi nó là phần tử bấm được.
+
+Sửa: thêm `summary` vào mảng selector. Một dòng.
+
+### P1 — Vùng chạm hai nút chồm nhau 8px · ĐÃ TỰ KIỂM (cơ chế)
+
+`components/chat/message-item.tsx:211` — nút `h-6 w-6` (24px) nới
+`after:-inset-[10px]`; `:262` và `:529` đặt `gap-0.5` (2px). Vùng chạm của nút
+kế bắt đầu ở 26−10 = 16px trong khi nút hiện tại kết thúc ở 24px ⇒ **8px trên
+24px bề rộng trỏ sang nút kế**, nút sau trong DOM ăn đè. Ở nhánh trợ lý (`:538-541`,
+"Tạo lại") nghĩa là lệch 8px là chạy lại cả lượt.
+
+*Giới hạn: tôi xác minh được CSS và hộp, chưa mở trình duyệt bấm thử.*
+
+### P1 — `.btn-primary:hover` thành nền xám sáng + chữ trắng · CHƯA KIỂM
+
+`components/ui/button.tsx:30` `hover:bg-strong`; `strong = #cccccc`
+(`tailwind.config.ts:57`), `on-fill = #ffffff` (`:90`) ⇒ **1.61:1**, fail AA. Nút
+biến mất đúng lúc chuột lên nó. `danger` tệ hơn: nút đỏ chuyển xám khi hover.
+13 call site. (Lưu ý: `components/ui/button.tsx` **không component nào import** —
+xem mục code chết; nhưng `.btn-primary` là recipe trong `globals.css` và được
+dùng thật ở `audit-viewer-dialog.tsx:289`.)
+
+### P1 — `DESIGN.md` mô tả một file không chạy · CHƯA KIỂM
+
+`components/chat/stream-bubble.tsx` **không component nào mount** (grep toàn repo
+chỉ ra chính nó + `data-testid`), nhưng:
+- `DESIGN.md:500` dùng nó làm **ngoại lệ duy nhất** cho `backdrop-blur`
+- `DESIGN.md:612-615` mô tả "khối suy luận đã sửa" nằm trong đó
+
+⇒ App thật không có blur nào, hợp đồng đang bảo vệ một file chết. Cùng cơ chế:
+`components/ui/text-shimmer.tsx` cũng 0 importer, và còn **trùng chức năng** với
+`components/effects/index.tsx:88-92` (hai API khác nhau cho một việc).
+
+### P1 — Panel "Quyền MCP Động" không bao giờ có dữ liệu · CHƯA KIỂM
+
+`components/mcp/tool-grants-panel.tsx:47` đọc kv `mcp:tool-grants`; grep toàn repo
+chỉ ra **3** lượt, tất cả trong chính file này (đọc + hai lần ghi rỗng). Chuỗi
+`SCHEMA_MUTATED` chỉ tồn tại trong file. Panel luôn rơi vào empty state `:125-128`,
+trong khi `:122` hứa "Hệ thống tự động vô hiệu hóa quyền nếu Schema bị thay đổi".
+
+---
+
+## Bản vá chắp — chỗ tôi chưa kiểm nhưng đáng soi trước
+
+Các mục dưới đều **CHƯA KIỂM**, gom lại vì cùng một mùi: khai một thứ trong UI mà
+tầng dưới không có dữ liệu, hoặc hai chỗ cùng cấu hình một khái niệm.
+
+1. **Panel tự khai "đã xác minh" chỉ từ lời model.** `plan-panel.tsx:58-62`
+   (`prog.done === prog.total ? 'verified'`) + `subagent-card.tsx:38-44` (dò chuỗi
+   `"verified"`/`"test pass"` trong kết quả) — trái `lib/evidence.ts:51` ("**Không
+   bao giờ** nhảy lên verified nếu không có VerificationReceipt") và §15.5 tách
+   "xong" ↔ "đã xác minh" làm hai trục độc lập.
+2. **Bảng phân quyền lệch taxonomy.** `lib/tool-catalog.ts:30` 8 category **không
+   có** `mcp`; `lib/tool-permissions.ts:36-85` 8 nhóm **có** `mcp`. ⇒
+   `tool-permissions-table.tsx:190-196` render dòng "Model Context Protocol (MCP)
+   (0 tool)" vĩnh viễn rỗng trên web, trong khi policy **có** đọc `permissions['mcp']`
+   (`:287`) và **không UI nào** ghi được khoá đó. `handleReset :116-125` cũng không
+   có `mcp`.
+3. **Temperature không có đường đọc.** `lib/models.ts:144 buildGenerationParams`
+   **0 call site**; `model-contracts.ts:30 unsupportedParams` không có reader;
+   `app/api/chat/route.ts:2288` gửi `{ temperature: temperature ?? 0.7 }` thẳng.
+   Ô Temperature đẩy giá trị tới gateway cho cả model reasoning vốn trả 400.
+4. **"Dexie v14" là chiều ghi một chiều.** `tool-permissions.ts:326,345`
+   (`loadToolPermissionsFromDb` / `syncToolPermissionsToDb`) chỉ được gọi từ
+   `tests/`, trong khi UI vẫn quảng cáo "Mọi thay đổi được lưu tự động (Zustand +
+   Dexie v14)" (`tool-permissions-table.tsx:319`).
+5. **Chỉ mục tìm kiếm Cài đặt nói sai sự thật.** `settings/settings-tabs.ts:73`
+   mô tả ô "API Key OpenAI chính gốc" — không tồn tại; `:79` nói "60+ công cụ" trong
+   khi `TOOL_CATALOG` có **36** entry.
+6. **Thành công mặc đồ warning, lỗi mặc đồ màu thành công.**
+   `auto-backup-section.tsx:146` render cả chuỗi thành công bằng `notice-warn`;
+   `settings-skills.tsx:173` render lỗi bằng `text-accent`.
+7. **`data-tab.tsx:127`** nói "nạp xong sẽ hỏi lại xác nhận" trong khi
+   `window.confirm` chạy **trước** khi nạp (`:50-55`).
+
+---
+
+## Code thừa / code chết
+
+### Chết hẳn, 0 importer
+
+| Nơi | Bằng chứng |
+|---|---|
+| `components/ui/button.tsx`, `icon-button.tsx`, `pill.tsx`, `disclosure-row.tsx` | ~300 dòng primitive, grep toàn repo chỉ trúng `tests/design-system.test.ts:132-135` (comment: "đăng ký NGAY từ đầu để đợt refactor sau"). Cả 4 còn lệch hợp đồng: vùng chạm 14–40px, dưới 44px mà §12 mục 3 chốt. |
+| `components/chat/stream-bubble.tsx` | 0 mount. Còn chứa `text-cyan-glow`, `hover:bg-rose-danger/20`, `max-w-4xl`. |
+| `components/ui/text-shimmer.tsx` | 0 import, trùng chức năng `effects/index.tsx:88-92`. |
+| `lib/models.ts:144` `buildGenerationParams` | 0 call site. |
+
+### Chỉ sống nhờ test, app không dùng
+
+| Nơi | Bằng chứng |
+|---|---|
+| `lib/hud-store.ts` | 7/9 mutator không call site. `clearLanes`/`removeLane` không có ⇒ **HUD không bao giờ được xoá**, số liệu chat cũ vẫn hiện khi đã sang chat khác. `HudLane.turn`/`elapsedSec`/`parallelShots` không có đường ghi ⇒ luôn 0. `LaneKind` khai 4 giá trị, chỉ `'main'` dùng. |
+| `lib/notice-store.ts` FIFO trần 5 | xem mục "Claim tôi bác bỏ". |
+| `lib/tool-permissions.ts:326,345` | chỉ `tests/` gọi. |
+
+### Chết trong chính hệ thống token
+
+| Nơi | Bằng chứng |
+|---|---|
+| `tailwind.config.ts:143-147` `zinc:{200,500,600}` | 0 call site — **và test `:588` cấm xoá**, tức assertion đang khoá code chết. |
+| `tailwind.config.ts` `amber-warn`, `'border-subtle'`, `head: 20px`, `'3xl': '20px'`, `hex['brand-*']` | 0 call site từng cái. |
+| `globals.css:122-126` `--surface`, `--surface-raised`, `--surface-bubble`, `--surface-muted`, `--foreground`, `--muted-foreground`, `--brand`, `--brand-accent` | 0 `var()` và không có key `colors` tương ứng. **Bẫy tên:** `--surface` = `252 252 252` (= `--bg-base`) trong khi Tailwind `surface` = `#ffffff`. |
+| `globals.css` `.menu-item-danger`, `.claude-input`, `.settings-card-head`, `.diff-line-*` | 0 call site. |
+| `components/effects/index.tsx:98-107` `PulseGlow` | 0 nơi gọi. Dùng lại sẽ tái phát `ring-*` — mà `ring-*` là 0 call site khác trong repo. |
+| `components/settings/settings-tabs.ts:100-113` | 6/10 nhánh `switch` không tới được: grep `openSettings(` chỉ truyền 5 giá trị. |
+
+### Chết lặt trong component
+
+- `components/chat/message-status-badge.tsx:24-30` — nhánh `status === "streaming"`
+  không tới được (call site duy nhất nằm trong `failedTurn`).
+- `components/evidence-badge.tsx:15` — prop `size` khai nhưng không destructure; hai
+  call site vẫn truyền.
+- `components/composer.tsx:442` `wrapRef` chỉ được gán, không nơi nào đọc.
+- `components/vyen-logo.tsx:80,81` — props `withWordmark`/`className` không ai
+  truyền, nhánh `if (!withWordmark) return` là code chết.
+- `react/use-chat-orchestration.ts:978-979` — `steeringCount`/`followUpCount` được
+  set nhưng **không trả ra khỏi hook** ⇒ hai state chết, mỗi lần drain lại re-render
+  cả `chat-interface`.
+- `lib/context-compaction.ts:326` `WRITE_TOOLS` — khai mà không dùng.
+
+---
+
+## Claim tôi BÁC BỎ — không sửa theo
+
+1. **"Hàng đợi toast đầy thì vứt bản tin MỚI" (báo P1).** **SAI.** Đọc
+   `lib/notice-store.ts:57-62`: có comment tường minh — *"Hàng đầy thì BỎ bản mới,
+   không bỏ bản cũ: hàng là FIFO, thứ tự đọc là thứ tự đến."* Đây là quyết định có
+   chủ đích, không phải bug. Nỗi thật còn lại chỉ là: lỗi mất dữ liệu đi qua đúng
+   hàng đó thì biến mất không dấu vết — đó là **đánh đổi thiết kế**, sửa được nếu
+   muốn, không phải lỗi.
+2. **Con số "165 call site `tracking-[...]`" của đợt trước.** Đếm thật:
+   `tracking-[...]` = **6** (4× `0.08em`, 2× `0.05em`); cộng `tracking-wide` 7 +
+   `tracking-wider` 8 = **21** tổng. Đợt trước đã nhân ~8×. Mục "thêm thang tracking"
+   trong danh sách làm đẹp của đợt 1 dựa trên con số sai ⇒ **mục đích vẫn đúng**
+   (không có thang), nhưng mức độ không tệ như đã ghi.
+3. **"`tests/message-item-timeline.test.ts:75,77` trái §15.1".** Agent tự bác bỏ
+   sau khi đọc: §15.1 (`DESIGN.md:1265-1271`) chỉ chốt thứ tự đọc của **bản tổng kết**
+   và nguyên tắc "lời giải thích, tool và kết luận không được cùng một độ nổi";
+   reasoning không được nêu tên. Test khoá reasoning dưới `<MessageUsage>` **không
+   trái**. Muốn đổi thì phải thêm mục vào `DESIGN.md` trước, không phải sửa test.
+4. **`lib/use-stick-to-bottom.ts` là code chết.** Không — đang dùng thật ở
+   `react/use-chat-orchestration.ts:41,3957`.
+
+---
+
+## Cái tôi chưa nghiệm thu được
+
+- **Chiều sâu vẫn chưa nghiệm thu bằng mắt.** Đợt trước đã nâng `lift-md`; đợt này
+  đo lại tổng alpha: `lift-sm` 0.05 · `lift-md` 0.18 · `lift-lg` 0.19 · `well` 0.04.
+  Agent F **không tái lập được** con số 8,1% ghi trong `globals.css:281-282` bằng
+  mô hình của nó (cho 2,77%). Số trong DESIGN.md và test là nguồn đáng tin hơn mô
+  hình. Cần chụp 375/1024/1440 và soi mắt — **đây vẫn là khoảng trống lớn nhất
+  của cả hai đợt.**
+- **Chưa mở app.** Không claim nào trong báo cáo này là quan sát trực tiếp từ
+  trình duyệt; tất cả là đọc code.
+- **Chưa chạy `npm run typecheck` / `lint` / test.** Đợt này read-only.
+- **Lô G (dead code sweep) chưa xong** — `lib/teamwork/` (~40 file), `app/api/`
+  (9 route), `react/` (4 file), `bin/`, `scripts/`, artifact ở gốc repo. Phần lớn
+  code chết có giá trị nhất nằm ở đó.
+
+---
+
+## Thứ tự đề xuất
+
+1. **P0 phân quyền tool** — sửa phạm vi ghi sai trên màn hình an toàn, và cần
+   migration khoá cũ.
+2. **P1 `.field-label`** — sửa 1 dòng + thêm assertion quét *mọi* recipe, đừng chỉ
+   vá `.uic`.
+3. **P1 Escape xoá tin đã queue** — mất dữ liệu, người dùng không hề biết.
+4. **P1 focus trap bỏ sót `<summary>`** — 1 dòng, mở khoá xem diff bằng bàn phím.
+5. **P1 vùng chạm chồm nhau** — mở trình duyệt bấm thử rồi mới chọn giá trị inset.
+6. **Bản vá chắp mục 1–7** — cần quyết định của bạn: xoá, hay nối dữ liệu thật vào.
+7. **Code chết**: 4 file `components/ui/*` + `stream-bubble.tsx` + `text-shimmer.tsx`
+   ≈ 500 dòng. Nhưng chúng **đang được test canh** và `DESIGN.md` mô tả ⇒ xoá phải
+   sửa `DESIGN.md` + test cùng lượt.
+8. **`TOKENIZED_COMPONENTS` chỉ có 59 file** trong khi `components/`+`app/` có 83
+   file `.ts(x)` ⇒ **25 file không chịu assertion palette / Tailwind-mặc-định /
+   opacity-chữ / `dark:` / cỡ-px**. Đây là lý do gốc vì sao các lỗi trên lọt qua.
+
+## Cần quyết định của bạn
+
+- `components/ui/*` (4 file) và `stream-bubble.tsx`: **xoá** (kéo test + DESIGN.md
+  theo) hay **dùng lại** (refactor call site sang đó)?
+- `lib/hud-store.ts` 7/9 mutator chết: xoá, hay nối `clearLanes` vào lúc đổi chat?
+- Đợt 1 còn treo: `react/use-streaming-text.ts` có call site không — lô G sẽ trả lời.
+
+---
+---
+
+# Pass xoá code chết — 2026-10-14
+
+Lô G (dead-code sweep) **chết do lỗi mạng** (`getaddrinfo ETIMEOUT`), nên phạm vi
+xoá giới hạn ở đúng những gì 6 lô đã quét xong. Mỗi mục dưới đây đều được grep
+lại trước khi cắt — **không có mục nào chỉ dựa vào báo cáo agent**, và 3 claim
+sai của agent đã bị chặn lại (xem cuối).
+
+## Đã xoá
+
+**Component chết hẳn (0 importer), kéo theo test + `DESIGN.md` cùng lượt**
+
+| Xoá | Kéo theo |
+|---|---|
+| `components/chat/stream-bubble.tsx` | `tests/design-system.test.ts` (TOKENIZED_COMPONENTS), `tests/a11y-contract.test.ts` (danh sách overlay), `DESIGN.md` §8.1 + §11 — cả 3 chỗ đều đang mô tả hệ đang chạy nên phải viết lại, không xoá dòng |
+| `components/ui/button.tsx`, `icon-button.tsx`, `pill.tsx`, `disclosure-row.tsx`, `text-shimmer.tsx` | 5 mục trong TOKENIZED_COMPONENTS. Thư mục `components/ui/` giờ rỗng. |
+| `components/effects/index.tsx` → `TextShimmer` | xoá `stream-bubble` làm nó mất call site duy nhất |
+
+**Lib chết**
+
+| Xoá | Bằng chứng |
+|---|---|
+| `lib/hud-store.ts`: 7/9 mutator + `activeLaneId` (−111 dòng) | mỗi mutator chỉ có 2 lượt = khai báo interface + thân hàm |
+| `lib/models.ts` `buildGenerationParams` | 1 lượt duy nhất = chính dòng định nghĩa |
+| `lib/workspace-checkpoints.ts` `listSnapshots`, `WS_MAX_FILE_BYTES` | mỗi cái 1 lượt |
+| `lib/context-compaction.ts` `WRITE_TOOLS` | khai mà không dùng (`READ_TOOLS` cạnh bên thì dùng) |
+| `lib/audit-log.ts` alias `verifyAuditLogChain`; bỏ `export` cho `getDiskAnchorPath`, `pruneAuditLogs` | 3 hàm còn dùng nội bộ, chỉ là không ai import |
+| `lib/search-utils.ts` bỏ `export` cho 2 hằng | dùng nội bộ |
+| `react/use-chat-orchestration.ts` `steeringCount`, `followUpCount` | **chỉ có đúng 2 dòng khai báo** — không setter nào gọi tới, không được trả ra khỏi hook. Comment ngay trên nói "state chỉ để render + đếm" đã thành lời nói dối nên sửa lại theo. |
+| `lib/evidence.ts` bỏ `stage` + `cert` khỏi giá trị trả về của `describeEvidence` | `badgeText` là **literal riêng**, không phải `${stage} · ${cert}` — nên 2 field kia chỉ là bản sao của hai nửa trong `badgeText`, không component nào đọc. `tests/evidence-badge.test.ts` chuyển sang assert `badgeText` (giữ nguyên ý nghĩa canh). |
+
+**Token / config chết**
+
+| Xoá | Ghi chú |
+|---|---|
+| `app/globals.css`: 8 biến `--surface`, `--surface-raised`, `--surface-bubble`, `--surface-muted`, `--brand`, `--brand-accent`, `--foreground`, `--muted-foreground` | 0 `var()`, không có `var(--${…})` động. Di sản của bộ tên token kiểu shadcn tồn tại song song với §2. **Giữ** `--surface-code` (đang dùng) và 3 biến `--brand-lime/mid/deep` (tailwind map). |
+| `app/globals.css`: `.menu-item-danger`, `.claude-input`, `.settings-card-head`, cả khối `.diff-line-added/removed/context` | 0 call site từng cái |
+| `tailwind.config.ts`: khối `zinc: {200,500,600}` | config tự dặn "Xoá khi grep `zinc-` không còn kết quả" — grep rỗng nên điều kiện đã thành hiện thực |
+| `tailwind.config.ts`: `'amber-warn'`, `colors['border-subtle']` | 0 call site |
+
+**Prop chết**: `components/evidence-badge.tsx` prop `size` (không destructure, không tác dụng) + 2 call site `message-item.tsx:715`, `agent-hud.tsx:126`.
+
+**Doc sửa theo (vì nó mô tả hệ đang chạy, xoá code mà không sửa doc là tạo doc sai)**: `DESIGN.md` §2 alias `--brand*`, §8.1 claim "chỗ duy nhất dùng `backdrop-blur`", §11 lịch sử `stream-bubble`, §8.2 `.menu-item` ghi `font-mono` trong khi code đã là `font-sans` + `.menu-item-danger` không còn tồn tại.
+
+**Test sửa theo**: `tests/design-system.test.ts` — assertion zinc đảo từ "còn đúng 3 bậc" thành "không còn khối `zinc: {`", vì trạng thái cần bảo vệ bây giờ là sự vắng mặt. `tests/a11y-contract.test.ts` bỏ entry đã xoá. `tests/evidence-badge.test.ts` 2 assertion chuyển từ `stage`/`cert` sang `badgeText`.
+
+## KHÔNG xoá — và vì sao
+
+Ba mục agent báo là chết nhưng tôi kiểm thấy sai:
+
+1. **`hex['brand-lime'|'brand-mid'|'brand'|'brand-deep']`** — agent báo 0 tham chiếu. Sai:
+   `tests/design-system.test.ts:511` chốt `hex` đúng **25 key** và mọi giá trị phải
+   thuộc `PALETTE_TOKENS`; 4 giá trị brand nằm trong đó (`:54`). Xoá là phá
+   hợp đồng bảng màu §2.
+2. **Nhánh `status === "streaming"` trong `MessageStatusBadge`** — agent báo không
+   tới được. Sai: `lib/db.ts:25` khai
+   `StoredMessageStatus = 'complete' | 'streaming' | 'aborted' | 'error'`, và
+   `message-item.tsx:476` đọc status từ **DB** — tin bị lưu dở lúc app đóng giữa
+   lượt mang đúng `'streaming'`.
+3. **6 nhánh `case` alias trong `resolveSettingsTab`** — `settingsInitialTab` đến
+   từ store persist (`lib/store.ts:222`), tức dữ liệu người dùng đã lưu từ phiên
+   cũ vẫn có thể mang id cũ. Đây là chuẩn hoá input, không phải nhánh thừa.
+
+Ngoài ra giữ có chủ đích: `fx-bar-bounce` / `fx-dot-bounce` / `fx-sweep` trong
+`tailwind.config.ts` — `components/effects/index.tsx` ghi rõ *"đừng xoá vội khi
+chưa biết còn ý định dùng lại không"*. `useFxEnabled` cũng giữ: 0 importer sau khi
+xoá `TextShimmer`, nhưng `tests/startup-weight.test.ts:94` đang canh nó và nó là
+tầng JS của cơ chế tắt animation 2 lớp mà `DESIGN.md` mô tả.
+
+## Chưa nghiệm thu
+
+`npm run typecheck` và `npm run lint` **chưa chạy xong** — server restart hai lần,
+giết cả job nền. Test hẹp (`design-system`, `a11y-contract`, `evidence-badge`,
+`composer-affordances`, `startup-weight`) đã chạy nền, kết quả ghi ở mục sau khi có.
+Chưa mở app. Lô G vẫn chưa quét được `lib/teamwork/`, `app/api/`, `bin/`,
+`scripts/`, artifact gốc repo — phần code chết còn lại nằm ở đó.

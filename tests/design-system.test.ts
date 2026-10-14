@@ -118,7 +118,6 @@ describe('DESIGN.md — Vyen design-system contract', () => {
     '../components/hud/agent-hud.tsx',
     '../components/chat-error-boundary.tsx',
     '../components/vyen-logo.tsx',
-    '../components/chat/stream-bubble.tsx',
     '../components/chat-interface.tsx',
     '../components/markdown-renderer.tsx',
     /* Màn hình lỗi — mới được đưa về token, trước đó không ai canh. */
@@ -127,13 +126,6 @@ describe('DESIGN.md — Vyen design-system contract', () => {
     '../app/page.tsx',
     '../app/globals.css',
     '../app/layout.tsx',
-    /* Thư viện primitive dùng chung — đăng ký NGAY từ đầu để đợt refactor
-       sau chỉ việc thay call site, không phải nhớ canh token. */
-    '../components/ui/button.tsx',
-    '../components/ui/disclosure-row.tsx',
-    '../components/ui/icon-button.tsx',
-    '../components/ui/pill.tsx',
-    '../components/ui/text-shimmer.tsx',
   ];
 
   /** Họ màu Tailwind mặc định — dùng là ra ngoài bảng token. */
@@ -585,14 +577,16 @@ describe('DESIGN.md — Vyen design-system contract', () => {
     }
   });
 
-  it('thang zinc lật bậc đã bị gỡ: chỉ còn đúng 3 bậc alias', () => {
-    const config = read(tailwindConfigPath);
-    const block = config.slice(config.indexOf('zinc: {'), config.indexOf('} as const', config.indexOf('zinc: {')));
-    const steps = [...block.matchAll(/^\s*(\d+):/gm)].map((m) => m[1]);
-    expect(steps).toEqual(['200', '500', '600']);
-    /* Còn sót bậc nào khác là thang lật bậc sống lại. */
-    expect(steps).not.toContain('50');
-    expect(steps).not.toContain('950');
+  it('thang zinc lật bậc đã bị gỡ hẳn khỏi config', () => {
+    /*
+     * Trước 2026-10-14 assertion này chốt "còn đúng 3 bậc 200/500/600" — nhưng
+     * cả 3 đã hết call site và comment trong `tailwind.config.ts` tự dặn
+     * "Xoá khi grep `zinc-` không còn kết quả". Điều kiện đó đã thành hiện thực
+     * nên khối khai báo bị xoá; assertion đảo lại thành canh sự VẮNG MẶT, vì
+     * đó mới là trạng thái cần bảo vệ: thang lật bậc chỉ quay lại nếu ai đó
+     * tự thêm khối `zinc: {` vào lại.
+     */
+    expect(read(tailwindConfigPath), 'không còn khối khai báo thang zinc').not.toContain('zinc: {');
   });
 
   /* ------------------------------------------------------------------ */

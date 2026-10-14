@@ -212,9 +212,13 @@ bộ recipe trong `globals.css` cùng 7 call site trong component.
 | `success` / `warning` / `danger` / `info` | `#167a4a` / `#9a6206` / `#b3261e` / `#0369a1` | trạng thái |
 | `reasoning` | `#6d4aa8` | khối suy luận — màu riêng, không dùng cho trạng thái |
 
-Họ xanh nhấn đã đổi từ teal `#2a7360` sang **xanh logo mới** `#0B7A53`. Ba alias
-`--accent-steel` và `--brand` nay trỏ đúng bằng `accent`; `--brand-accent` trỏ
-`--danger` (`#b3261e`) và chỉ `components/vyen-logo.tsx` gọi trực tiếp.
+Họ xanh nhấn đã đổi từ teal `#2a7360` sang **xanh logo mới** `#0B7A53`. Alias
+`--accent-steel` trỏ đúng bằng `accent`. Ba biến `--brand`, `--brand-accent`,
+`--muted-foreground` và nhóm `--surface*` (trừ `--surface-code`, vẫn đang dùng)
+đã bị xoá 2026-10-14 vì không còn `var()` nào đọc tới — chúng là di sản của bộ
+tên token kiểu shadcn từng tồn tại song song với §2, chỉ là "nguồn sự thật thứ
+hai" không ai đọc. `--brand-lime` / `--brand-mid` / `--brand-deep` thì **giữ**:
+`tailwind.config.ts` vẫn map chúng cho màu logo.
 
 `accent-soft` là token **nền**, không phải token chữ — nó tách riêng khỏi `accent`
 vì nền nhạt trên giấy trắng chỉ đạt 1.14:1, không đọc được.
@@ -496,15 +500,18 @@ overlay là sửa điện mạo của nhiều màn hình cùng lúc: đọc hế
   dialog. Không trộn hai tầng này trong cùng một vỏ.
 - Đệm vỏ: `p-1` đến `p-1.5`. Menu nhiều dòng dùng `p-1.5`.
 - Vỏ overlay không dùng `backdrop-blur`: chiều sâu của hệ đến từ nền + viền (§1.4).
-  Chỗ duy nhất đang làm mờ là dải fade cuối cột hội thoại
-  (`components/chat/stream-bubble.tsx:92`), không phải overlay.
+  Tính đến 2026-10-14 **không còn chỗ nào trong app dùng `backdrop-blur`** — dải
+  fade cuối cột hội thoại từng nằm ở `components/chat/stream-bubble.tsx`, file đó
+  đã bị xoá vì không component nào mount.
 
 **Hàng trong menu:**
 
-- Recipe `.menu-item` là mặc định: `rounded-lg px-3 py-2 text-ui font-mono`,
-  hover `bg-raised`, chuyển màu `duration-150`. Hàng nguy hiểm thêm `.menu-item-danger`.
-  (`font-mono` ở đây là quy ước chung của hệ — xem §3, không phải ngoại lệ riêng
-  của menu.)
+- Recipe `.menu-item` là mặc định: `rounded-lg px-3 py-2 text-ui font-sans`,
+  hover `bg-raised`, chuyển màu `duration-150`.
+  *(Sửa 2026-10-14: dòng này ghi `font-mono` trong khi `globals.css` đã là
+  `font-sans` — doc sai code, code đúng. Recipe `.menu-item-danger` cũng đã bị xoá:
+  không call site nào dùng, nên "hàng nguy hiểm" nay phải tô trực tiếp bằng
+  `text-danger hover:bg-danger/10`.)*
 - Hàng cần vùng chạm 44px thì viết tay và **ghi rõ vì sao**:
   `min-h-11 rounded-lg px-2.5 py-2` (`model-selector.tsx:275`).
 - Chọn / hover dùng `bg-raised` — hệ này không có token `menu-hover` riêng. Đừng tô
@@ -609,10 +616,11 @@ xem §3.
   `components/workspace-checkpoints.tsx` và `components/mcp/tool-approval-dialog.tsx`
   đã bị gỡ. Chuỗi `.vyen-frame` / `.pi-frame` + 8 ngoặc góc đã bị xoá khỏi
   `app/globals.css` từ trước nên chúng vốn đã không sinh CSS nào.
-- **Khối suy luận trong `stream-bubble.tsx` — đã sửa.** Nó từng dùng `bg-reasoning`
-  **đặc** làm nền, khiến `text-primary` trên đó chỉ còn 2.39:1 (fail AA) và icon
-  `text-reasoning` là 1.00:1 — vô hình. Nay dùng `bg-reasoning/10` + chữ
-  `text-primary`/`text-secondary`. Xem §2.4.
+- **Khối suy luận trong `stream-bubble.tsx` — đã sửa rồi xoá.** Nó từng dùng
+  `bg-reasoning` **đặc** làm nền, khiến `text-primary` trên đó chỉ còn 2.39:1 (fail
+  AA) và icon `text-reasoning` là 1.00:1 — vô hình. Sửa xong thành `bg-reasoning/10`
+  + chữ `text-primary`/`text-secondary` (§2.4), nhưng file vẫn không component nào
+  mount nên đã bị xoá 2026-10-14. Mục này giữ lại như lịch sử, không phải spec.
 - **`thinking-menu.tsx` tự ghi `z-40` — ĐÃ SỬA (2026-10-06).** Chỗ đó nay dùng
   `${Z_CLASS.dropdown}`; cả 12 overlay đều lấy số từ `lib/ui-z.ts`. Giá trị không
   đổi (40 = `dropdown`) nên diện mạo không đổi.
