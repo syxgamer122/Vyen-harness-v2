@@ -501,7 +501,7 @@ overlay là sửa điện mạo của nhiều màn hình cùng lúc: đọc hế
 - Đệm vỏ: `p-1` đến `p-1.5`. Menu nhiều dòng dùng `p-1.5`.
 - Vỏ overlay không dùng `backdrop-blur`: chiều sâu của hệ đến từ nền + viền (§1.4).
   Tính đến 2026-10-14 **không còn chỗ nào trong app dùng `backdrop-blur`** — dải
-  fade cuối cột hội thoại từng nằm ở `components/chat/stream-bubble.tsx`, file đó
+  fade cuối cột hội thoại từng nằm ở `components/chat/stream-bubble.tsx`, file đó <!-- docs-check:ignore -->
   đã bị xoá vì không component nào mount.
 
 **Hàng trong menu:**
@@ -616,7 +616,7 @@ xem §3.
   `components/workspace-checkpoints.tsx` và `components/mcp/tool-approval-dialog.tsx`
   đã bị gỡ. Chuỗi `.vyen-frame` / `.pi-frame` + 8 ngoặc góc đã bị xoá khỏi
   `app/globals.css` từ trước nên chúng vốn đã không sinh CSS nào.
-- **Khối suy luận trong `stream-bubble.tsx` — đã sửa rồi xoá.** Nó từng dùng
+- **Khối suy luận trong `stream-bubble.tsx` — đã sửa rồi xoá.** Nó từng dùng <!-- docs-check:ignore -->
   `bg-reasoning` **đặc** làm nền, khiến `text-primary` trên đó chỉ còn 2.39:1 (fail
   AA) và icon `text-reasoning` là 1.00:1 — vô hình. Sửa xong thành `bg-reasoning/10`
   + chữ `text-primary`/`text-secondary` (§2.4), nhưng file vẫn không component nào
@@ -653,25 +653,23 @@ Cùng đợt typography, comment trong `tests/design-system.test.ts` cũng còn 
 
 ### 9.6 Tham chiếu tới tài liệu này trong code — và vì sao đừng tách file vội
 
-Có **21** chỗ trong `.ts` / `.tsx` / `.cjs` (9 file: `lib/ui-z.ts`,
-`scripts/codemod-tokens.cjs`, `tailwind.config.ts`, `components/composer.tsx`,
-`components/chat/tool-trace.tsx`, `tests/composer-affordances.test.ts`,
-`tests/composer-contrast.test.ts`, `tests/design-system.test.ts`), cộng 1 chỗ trong
+Có **49** chỗ trong `.ts` / `.tsx` (19 file — đã đếm lại bằng chính lệnh dưới,
+danh sách file từng ghi ở đây đã cũ nên không liệt kê nữa; hiện không còn file
+`.cjs` nào trỏ tới), cộng 1 chỗ trong
 `PLAN.md` — trỏ tới số mục của tài liệu này
-(`grep -rn "DESIGN\.md §" --include=*.ts --include=*.tsx --include=*.cjs`). Ba trong
+(`grep -rn "DESIGN\.md §" --include=*.ts --include=*.tsx --include=*.cjs`). Hai trong
 số đó đã lệch sẵn:
 
 | Chỗ ghi | Thực tế |
 |---|---|
 | `lib/ui-z.ts:2` — "DESIGN.md mục 4" | Thang z-index là §8 |
-| `scripts/codemod-tokens.cjs:3` — "mục 6.3" | §6 không có mục con nào |
-| `components/chat/tool-trace.tsx:797` — "§5.3" | §5 chỉ có 5.1 |
+| `components/chat/tool-trace.tsx:999` — "§5.3" | §5 chỉ có 5.1 |
 
 Đây là lý do cụ thể để **không** tách tài liệu thành nhiều file ngay: mỗi lần đổi số
-mục là 22 tham chiếu có nguy cơ lệch, và ba chỗ trên cho thấy chúng lệch trong im
+mục là 50 tham chiếu có nguy cơ lệch, và hai chỗ trên cho thấy chúng lệch trong im
 lặng. Tách file không làm việc đó dễ hơn — chỉ đổi tham chiếu từ "sai số mục" thành
-"sai tên file". Nếu muốn tách, làm theo hai bước: (1) sửa ba tham chiếu lệch ở
-trên, (2) thay số mục bằng tên file ở cả 22 chỗ trong cùng một commit. Trước đó,
+"sai tên file". Nếu muốn tách, làm theo hai bước: (1) sửa hai tham chiếu lệch ở
+trên, (2) thay số mục bằng tên file ở cả 50 chỗ trong cùng một commit. Trước đó,
 dùng §11 làm "nhật ký" đã đủ để spec không lẫn với lịch sử.
 
 ---
