@@ -166,13 +166,15 @@ describe('describeEvidence — 6 bậc thang bằng chứng, nhãn tiếng Việ
   /**
    * ĐỎ khi: trả lại bất kỳ từ tiếng Anh nào của thang cũ
    * ('Plan · not run', 'Test · verified', 'Blocked', 'Failed'…).
+   * `stage`/`cert` đã bị gỡ khỏi hợp đồng trả về (xem lib/evidence.ts) vì
+   * không component nào đọc — `badgeText` là chuỗi duy nhất người dùng thấy.
    */
-  it('không còn từ tiếng Anh nào của thang cũ trong stage/cert/badgeText', () => {
+  it('không còn từ tiếng Anh nào của thang cũ trong badgeText', () => {
     for (const level of LEVELS) {
-      const { stage, cert, badgeText } = describeEvidence(level);
-      for (const text of [stage, cert, badgeText]) {
-        expect(text, `${level}: "${text}" còn từ tiếng Anh`).not.toMatch(ENGLISH_LADDER_WORDS);
-      }
+      const { badgeText } = describeEvidence(level);
+      expect(badgeText, `${level}: "${badgeText}" còn từ tiếng Anh`).not.toMatch(
+        ENGLISH_LADDER_WORDS,
+      );
     }
   });
 

@@ -3240,7 +3240,6 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
         const steerDrained = drainQueue(steeringRef.current, steeringModeRef.current);
         if (steerDrained.taken.length > 0) {
           steeringRef.current = steerDrained.rest;
-          setSteeringCount(steerDrained.rest.length);
           const steerText = steerDrained.taken.join('\n\n');
           /* Steering = điều chỉnh việc đang làm → nối vào LƯỢT đang mở, không
              mở lượt mới (§15.1 bảng ranh giới). */
@@ -3274,7 +3273,6 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
         const followDrained = drainQueue(followUpRef.current, followUpModeRef.current);
         if (followDrained.taken.length > 0) {
           followUpRef.current = followDrained.rest;
-          setFollowUpCount(followDrained.rest.length);
           const followText = followDrained.taken.join('\n\n');
           /* Follow-up là VIỆC KHÁC người dùng đã xếp hàng trước đó → lượt mới,
              đúng dòng "giao việc khác" của bảng §15.1. Gộp nó vào lượt cũ là
@@ -4148,8 +4146,6 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
       (takeBack !== undefined ? 1 : 0);
     steeringRef.current = [];
     followUpRef.current = [];
-    setSteeringCount(0);
-    setFollowUpCount(0);
     if (takeBack !== undefined) composerApiRef.current?.setText(takeBack);
     if (discarded > 0) showNotice(`Đã bỏ ${discarded} tin còn lại trong hàng đợi.`, 4000);
     /**
@@ -5951,7 +5947,6 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
       if (!trimmed) return 'dropped';
       if (!isLoading) return 'sent';
       const ref = kind === 'steer' ? steeringRef : followUpRef;
-      const setCount = kind === 'steer' ? setSteeringCount : setFollowUpCount;
       const r = enqueueMessage(ref.current, trimmed);
       if (r.dropped) {
         showNotice(
@@ -5961,7 +5956,6 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
         return 'dropped';
       }
       ref.current = r.queue;
-      setCount(r.queue.length);
       showNotice(
         kind === 'steer'
           ? `Đã xếp steering (${r.queue.length}) — sẽ gửi ngay khi turn hiện tại xong.`
@@ -5981,14 +5975,12 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
     const steerLast = steeringRef.current[steeringRef.current.length - 1];
     if (steerLast !== undefined) {
       steeringRef.current = steeringRef.current.slice(0, -1);
-      setSteeringCount(steeringRef.current.length);
       composerApiRef.current?.setText(steerLast);
       return true;
     }
     const followLast = followUpRef.current[followUpRef.current.length - 1];
     if (followLast !== undefined) {
       followUpRef.current = followUpRef.current.slice(0, -1);
-      setFollowUpCount(followUpRef.current.length);
       composerApiRef.current?.setText(followLast);
       return true;
     }
