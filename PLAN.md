@@ -655,8 +655,8 @@ Bối cảnh: `task.md` (audit ngoài, chỉ đọc cấu trúc zip, không đ�
 Đối chiếu `task.md` với repo thật: mục 2 (approval-binding "dual implementation" —
 thật ra là facade typed gọi 1 nguồn duy nhất), mục 3 (3 script `verify:security`
 không hề bỏ hoang) và mục 4 (`lib/media-models.ts` đang được dùng thật) **sai**;
-mục 1a (2 bản SVG mono trùng byte) đúng nhưng chưa xóa; mục 5 là ý kiến — repo giữ
-các micro-test vì chúng khóa bug thật.
+mục 1a (2 bản SVG mono trùng byte) đúng — đã xóa bản sót ở `public/`; mục 5 là ý kiến —
+repo giữ các micro-test vì chúng khóa bug thật.
 
 | Bước | Chứng minh |
 |---|---|
@@ -690,5 +690,8 @@ Kết quả (2026-10-15):
 - Khôi phục (giữ lại): `PLAN-ui-audit.md` (còn mục chưa nghiệm thu + Lô G chưa quét) và
   `scripts/generate-png-icons.cjs` (tool tái sinh icon; PLAN §2 từng đề xuất khai `sharp` — để sau).
 - Lint chạy lại sau khôi phục: vẫn 0 lỗi / 8 warning.
-- Còn lại: `task.md` untracked (không commit); 9 commit chưa push (6 cũ + 3 của đợt này) —
+- Vá nốt mục 1a của `task.md`: xóa `public/vyen-logo-mono.svg` (bản sót của `907b29a`,
+  trùng byte với `public/icons/vyen-logo-mono.svg`) — commit `a6460cb`; `docs:check` sau đó
+  vẫn OK (609 file theo dõi).
+- Còn lại: `task.md` untracked (không commit); 11 commit chưa push (6 cũ + 5 của đợt này) —
 chờ chủ repo duyệt.
