@@ -715,9 +715,7 @@ cần đợt riêng hiệu chỉnh test ngân sách. `redteam-picker.test.ts` l�
 
 Reviewer subagent: **0 Critical, 0 Important — "Ready to push? Yes"** (tự kiểm chứng độc
 lập: grep 0 tham chiếu còn lại cho mọi file bị xóa; chạy lại `docs:check` khớp §13; merge
-`651e6b9` có tree trùng base). 4 Minor chờ chủ repo chốt: (1) `DESIGN.md:1006,1008` còn trỏ
-tên 3 PNG đã gỡ — chưa ghi nhận ở §13, `docs:check` không bắt vì `PATH_RE` không phủ
-`.png`; (2) `PLAN-ui-audit.md:154-156,467` treo câu hỏi cũ "use-streaming-text xóa hay
-giữ" (đã chốt xóa — `b1b9e8e`); (3) `8152f68` đỏ typecheck tại chính tree của nó (xanh lại
-từ `231004a`; hygiene lịch sử, không đáng viết lại); (4) `public/sw.js` header comment
-trùng đời cũ (có từ baseline). Push sẽ là fast-forward.
+`651e6b9` có tree trùng base). 4 Minor — chủ repo chốt 2026-10-15: **(1)+(2) đã sửa —
+`0e5760e`** (DESIGN.md thêm chú thích "28 ảnh PNG đã gỡ khỏi git"; PLAN-ui-audit đóng hai
+câu hỏi cũ; `docs:check` sau sửa vẫn OK 609 file); **(3)+(4) để nguyên** (hygiene lịch sử và
+thẩm mỹ, không đáng viết lại/đụng). Push sẽ là fast-forward.
