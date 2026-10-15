@@ -695,3 +695,29 @@ Kết quả (2026-10-15):
   vẫn OK (609 file theo dõi).
 - Còn lại: `task.md` untracked (không commit); 11 commit chưa push (6 cũ + 5 của đợt này) —
 chờ chủ repo duyệt.
+
+### Full suite 2026-10-15 (1 luồng, máy này)
+
+`CI=true vitest run` (231 file, `--maxWorkers=1 --no-file-parallelism`): **3 đỏ / 3847**
+(3842 pass, 2 skip; 759s) — cả 3 ở `tests/secret-registry.test.ts` khối ngân sách ReDoS
+(`:327`; best-of-3 = 517 / 714 / 529ms vs trần 500ms). Chạy riêng file trên máy rảnh: đỏ y
+hệt (517/714/529) → không phải nhiễu tải; máy này chậm (máy dev đo riêng 280–460ms; suite
+759s vs 228s máy dev). Cùng họ đã ghi ở §12.6/§12.8 (từng 2–5 file đỏ, số nặng hơn
+2182–4081ms). Đối chiếu phạm vi: `git diff 69b5b8e..HEAD` với pathspec của khối này
+(`tests/secret-registry.test.ts`, `lib/secret-registry.ts`, `lib/security-sast.ts`,
+`lib/tool-limits.ts`) = **rỗng** → không do 11 commit này. Ngưỡng thật của chốt chặn là
+hồi quy quantifier trần (>5s cho 24k ký tự; bản hiện tại cách hồi quy 7–10 lần). Chốt tạm:
+**để nguyên, không nới trần** (không nới assert để lấy xanh); muốn hết đỏ trên máy chậm
+cần đợt riêng hiệu chỉnh test ngân sách. `redteam-picker.test.ts` lần này xanh (trước từng
+đỏ 2101–2509ms).
+
+### Code review 2026-10-15 (range `69b5b8e..1dffa3b`)
+
+Reviewer subagent: **0 Critical, 0 Important — "Ready to push? Yes"** (tự kiểm chứng độc
+lập: grep 0 tham chiếu còn lại cho mọi file bị xóa; chạy lại `docs:check` khớp §13; merge
+`651e6b9` có tree trùng base). 4 Minor chờ chủ repo chốt: (1) `DESIGN.md:1006,1008` còn trỏ
+tên 3 PNG đã gỡ — chưa ghi nhận ở §13, `docs:check` không bắt vì `PATH_RE` không phủ
+`.png`; (2) `PLAN-ui-audit.md:154-156,467` treo câu hỏi cũ "use-streaming-text xóa hay
+giữ" (đã chốt xóa — `b1b9e8e`); (3) `8152f68` đỏ typecheck tại chính tree của nó (xanh lại
+từ `231004a`; hygiene lịch sử, không đáng viết lại); (4) `public/sw.js` header comment
+trùng đời cũ (có từ baseline). Push sẽ là fast-forward.
