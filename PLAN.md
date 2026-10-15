@@ -635,3 +635,60 @@ Hai file đỏ còn lại đều là ngân sách thời gian: `redteam-picker.te
 (ReDoS budget, 2182–2970ms). Ở lần chạy trước còn thêm `teamwork-enhanced-engine`
 và `web-bridge` đỏ rồi tự xanh ở lần này — đó là dấu hiệu flake do máy chậm, và
 cả bốn đều nằm ngoài các file đợt này đụng tới.
+
+---
+
+## 13. Đợt "chốt cây xóa dở" — 2026-10-15
+
+Bối cảnh: `task.md` (audit ngoài, chỉ đọc cấu trúc zip, không đọc được code) + cây
+đang có 40 đường dẫn bị xóa chưa commit. Chủ repo đã chốt:
+
+- Khôi phục 3 file còn được code tham chiếu: `lib/approval-binding.ts` (5 import),
+  `public/sw.js` (`components/pwa-register.tsx` đăng ký `/sw.js`), và
+  `tests/fixtures/mcp-demo-server.mjs` (`tests/mcp-live-stdio.test.ts` spawn).
+- `docs/design-qa/`: bỏ 28 PNG khỏi git, giữ 3 `README.md` + `measurements.json`.
+  Lưu ý: 3 README còn liệt kê tên PNG đã bị gỡ.
+- Chờ chốt riêng: `PLAN-ui-audit.md`, `core/agent-runtime/index.ts` (barrel 0
+  importer), `docs/superpowers/plans/2026-10-13-first-run-and-tab-lock.md`,
+  `react/use-streaming-text.ts` (0 tham chiếu), `scripts/generate-png-icons.cjs`.
+
+Đối chiếu `task.md` với repo thật: mục 2 (approval-binding "dual implementation" —
+thật ra là facade typed gọi 1 nguồn duy nhất), mục 3 (3 script `verify:security`
+không hề bỏ hoang) và mục 4 (`lib/media-models.ts` đang được dùng thật) **sai**;
+mục 1a (2 bản SVG mono trùng byte) đúng nhưng chưa xóa; mục 5 là ý kiến — repo giữ
+các micro-test vì chúng khóa bug thật.
+
+| Bước | Chứng minh |
+|---|---|
+| 1. Khôi phục 7 file bằng `git restore` | 3 file + 4 file design-qa rời khỏi danh sách xóa |
+| 2. `npm ci --ignore-scripts` | exit 0 |
+| 3. `npm run typecheck` | exit 0 |
+| 4. `npm run lint` | 0 lỗi mới |
+| 5. Test hẹp: `approval-binding`, `core-state-machine`, `web-bridge`, `mcp-live-stdio` | xanh |
+| 6. `npm run docs:check` | exit 0 |
+
+Kết quả (2026-10-15):
+
+- ✅ `npm ci --ignore-scripts` exit 0 — 666 package, 31 cảnh báo audit có sẵn (không chạy
+  `audit fix`, sẽ đổi lockfile).
+- ✅ `npm run typecheck` exit 0 (output rỗng).
+- ✅ `npm run lint` 0 lỗi / 8 warning — đúng baseline, không thêm warning cho file khôi phục.
+- ✅ Test hẹp: `approval-binding` 19/19 · `core-state-machine` 1/1 (file chỉ có một `it()`
+  gộp) · `web-bridge` 29/29 · `mcp-live-stdio` 6/6 (fixture spawn được thật).
+- ⚠️ `npm run docs:check` **crash ENOENT** lần đầu — không do 7 file đã khôi phục, mà do 3 file
+  code vẫn đang xóa dở chưa commit: `core/agent-runtime/index.ts` (file đầu tiên theo thứ tự
+  đọc), `react/use-streaming-text.ts`, `scripts/generate-png-icons.cjs`. `check-docs-sync.cjs`
+  lấy danh sách từ `git ls-files` (index) rồi đọc worktree → mọi file xóa-chưa-commit đều làm
+  crash. Gỡ bằng cách commit các xóa (bên dưới) → **chạy lại OK: 9 tài liệu, 0 lệch
+  (610 file theo dõi)**. Phát hiện phụ để giành: `check-docs-sync.cjs` nên skip file thiếu
+  thay vì crash — chưa vá, ngoài phạm vi đợt này.
+
+Đã chốt và thi hành cùng ngày:
+
+- Xóa `core/agent-runtime/index.ts` + `react/use-streaming-text.ts` (0 tham chiếu) — commit `b1b9e8e`.
+- Bỏ 28 PNG `docs/design-qa/` (giữ README + measurements) + gỡ plan superpowers đã xong — commit `1339329`.
+- Khôi phục (giữ lại): `PLAN-ui-audit.md` (còn mục chưa nghiệm thu + Lô G chưa quét) và
+  `scripts/generate-png-icons.cjs` (tool tái sinh icon; PLAN §2 từng đề xuất khai `sharp` — để sau).
+- Lint chạy lại sau khôi phục: vẫn 0 lỗi / 8 warning.
+- Còn lại: `task.md` untracked (không commit); 9 commit chưa push (6 cũ + 3 của đợt này) —
+chờ chủ repo duyệt.
