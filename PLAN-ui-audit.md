@@ -153,7 +153,7 @@ session trước đã xoá `tests/telemetry-tab.test.ts` — không phải do đ
   test ghi 220 thực tế 224). **Không sửa ở đợt này** — cần một đợt riêng cập nhật docs.
 - `react/use-streaming-text.ts`: không có call site nào. Trước đây được giữ lại vì
   `DOCS_TSX_ARCHITECTURE.md:442` mô tả nó như một tầng kiến trúc; doc đó đã gỡ
-  nên lý do giữ không còn. **Cần user quyết** — xoá hay giữ.
+  nên lý do giữ không còn. **Đã chốt (2026-10-15): xoá** — `b1b9e8e`.
 
 ## Còn lại — cần user quyết
 
@@ -464,7 +464,7 @@ tầng dưới không có dữ liệu, hoặc hai chỗ cùng cấu hình một 
 - `components/ui/*` (4 file) và `stream-bubble.tsx`: **xoá** (kéo test + DESIGN.md
   theo) hay **dùng lại** (refactor call site sang đó)?
 - `lib/hud-store.ts` 7/9 mutator chết: xoá, hay nối `clearLanes` vào lúc đổi chat?
-- Đợt 1 còn treo: `react/use-streaming-text.ts` có call site không — lô G sẽ trả lời.
+- Đợt 1 còn treo: `react/use-streaming-text.ts` có call site không — **đã trả lời 2026-10-15**: grep toàn repo 0 call site; đã xoá (`b1b9e8e`).
 
 ---
 ---

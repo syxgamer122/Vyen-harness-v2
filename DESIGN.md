@@ -1006,7 +1006,7 @@ mắt, không sửa bằng số.
 > ảnh `1440-chat-tools-phases.png` / `1440-chat-tools-card-open.png`. Ảnh: `docs/design-qa/2026-10-07-turns/` — 4 bề rộng
 > (375/1024/1440/1440-zoom200%) cho lượt có tool chạy và lượt lỗi, đo 0px tràn
 > ngang, 0 lỗi console; thêm ảnh lượt đã GẬP (`1440-chat-turns-folded.png`, đợt
-> P1-C) cùng số đo hai chiều gập/mở. **Vẫn chưa có ảnh diff/approval thật**, nên
+> P1-C) cùng số đo hai chiều gập/mở. *(28 ảnh PNG của `docs/design-qa/` đã gỡ khỏi git ngày 2026-10-15 — commit `1339329`; mở lại bằng lịch sử git, số đo vẫn còn trong README/`measurements.json` từng thư mục.)* **Vẫn chưa có ảnh diff/approval thật**, nên
 > điều kiện §14.9 vẫn **chưa đạt** và "đẹp hơn" vẫn chưa được chứng minh bằng mắt.
 >
 > **Trạng thái 2026-10-08 (đợt P1-E):** bước 1–3 không đổi. Thêm: composer mới
