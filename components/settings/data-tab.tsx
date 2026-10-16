@@ -166,7 +166,7 @@ export function DataTab() {
        * (`storage-quota-meter.tsx:67`). Bọc thêm là card lồng card, phá nhịp
        * thị giác của tab — mọi khối anh em đều là `settings-card` trần, và
        * `UsageStats` ngay dưới (`:168-171`) cũng không có wrapper.
-       */
+       */}
       <StorageQuotaMeter />
 
       <div className="settings-card settings-card-body">

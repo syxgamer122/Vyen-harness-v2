@@ -115,12 +115,16 @@ describe('SETTINGS_SEARCH_ITEMS — các tính năng quan trọng đều tìm đ
   it('gõ "openai" vẫn rơi đúng chỗ qua keywords của mục BYOK', () => {
     // Thay vì giữ một mục bịa riêng, từ khoá "openai" phải nằm trong mục BYOK
     // để người dùng gõ ra đúng nơi có thật.
-    const haystacks = SETTINGS_SEARCH_ITEMS.map((i) =>
-      `${i.title} ${i.description} ${i.keywords}`.toLowerCase(),
+    //
+    // Lọc trên MẢNG ITEM rồi mới lấy `id` — dựng `haystacks` rồi lọc chuỗi
+    // thì mất `id` và không kiểm được mục nào thắng (đã xảy ra một lần).
+    const hits = SETTINGS_SEARCH_ITEMS.filter((i) =>
+      `${i.title} ${i.description} ${i.keywords}`.toLowerCase().includes('openai'),
     );
-    const hits = haystacks.filter((h) => h.includes('openai'));
-    expect(hits, 'không mục nào chứa từ khoá openai').toHaveLength(1);
-    expect(hits[0]).toContain('prov-byok');
+    expect(
+      hits.map((i) => i.id),
+      'đúng một mục chứa từ khoá openai, và phải là BYOK',
+    ).toEqual(['prov-byok']);
   });
 });
 
