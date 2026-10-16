@@ -37,7 +37,20 @@ import {
  */
 export const SERVER_PROVIDER_ID = '__server__';
 
-export type ThemePreference = 'light' | 'dark' | 'system';
+/*
+ * KHÔNG có `ThemePreference` ở đây — state `theme` và action `setTheme` đã bị
+ * gỡ (2026-10-16) vì chúng chết từ đầu: không nơi nào gọi `setTheme`, và theme
+ * cũng không được áp dụng ở bất kỳ đâu (không `data-theme`, không
+ * `<html class="dark">`; `app/globals.css:133-135` có `.dark { color-scheme:
+ * light }` — một no-op có chủ đích).
+ *
+ * App CỐ Ý chỉ có một theme sáng: `DESIGN.md` §7, ràng buộc cứng #6, và
+ * `tests/design-system.test.ts:1746-1754` + `tests/tool-trace.test.ts:772-774`
+ * cấm mọi biến thể `dark:`. Thêm nút đổi theme lúc này là một nút bấm không đổi
+ * màu — tức tự tạo bug. Làm theme tối thật cần bảng token cho ~30 biến trong
+ * `app/globals.css:25-119`, mở khoá 2 test trên, sửa `DESIGN.md`, và tính lại
+ * contrast toàn bảng màu. Việc đó là feature, không phải việc dọn.
+ */
 
 /**
  * Chế độ agent coding:
@@ -51,10 +64,6 @@ export type AgentMode = 'plan' | 'act';
 
 export function isAgentMode(v: unknown): v is AgentMode {
   return v === 'plan' || v === 'act';
-}
-
-export function isThemePreference(v: unknown): v is ThemePreference {
-  return v === 'light' || v === 'dark' || v === 'system';
 }
 
 /** Snapshot nhà cung cấp đang active — nằm trong store, không persist. */
@@ -239,8 +248,6 @@ interface AppState {
   isSettingsOpen: boolean;
   settingsInitialTab?: string;
   settings: Settings;
-  /** Giao diện sáng/tối — 'system' theo prefers-color-scheme của OS. */
-  theme: ThemePreference;
   /** Provider đang dùng — rỗng = chưa chọn provider nào. */
   activeProviderId: string;
   /** Snapshot provider active (baseUrl/key/models) — không persist. */
@@ -252,7 +259,6 @@ interface AppState {
   openSettings: (tab?: string) => void;
   setCustomSlashCommand: (name: string, recipeId: string) => void;
   removeCustomSlashCommand: (name: string) => void;
-  setTheme: (theme: ThemePreference) => void;
   updateSettings: (s: Partial<Omit<Settings, 'perf'>>) => void;
   updatePerf: (p: Partial<PerfSettings>) => void;
   setActiveProvider: (id: string) => void;
@@ -322,7 +328,6 @@ export const useAppStore = create<AppState>()(
       isSettingsOpen: false,
       settingsInitialTab: undefined,
       settings: DEFAULT_SETTINGS,
-      theme: 'system',
       activeProviderId: '',
       activeProvider: null,
       setCurrentChatId: (id) => set({ currentChatId: id, isSidebarOpen: false }),
@@ -356,7 +361,6 @@ export const useAppStore = create<AppState>()(
             },
           };
         }),
-      setTheme: (theme) => set({ theme }),
       updateSettings: (partial) =>
         set((s) => {
           const next = { ...s.settings, ...partial };
@@ -382,7 +386,6 @@ export const useAppStore = create<AppState>()(
       partialize: (s) => ({
         activeProviderId: s.activeProviderId,
         isSidebarCollapsed: s.isSidebarCollapsed,
-        theme: s.theme,
         settings: {
           model: s.settings.model,
           /* Lựa chọn của người dùng (không suy ra được từ đâu khác) → phải
@@ -441,7 +444,6 @@ export const useAppStore = create<AppState>()(
           ...current,
           ...p,
           activeProviderId: validProviderId,
-          theme: isThemePreference(p.theme) ? p.theme : current.theme,
           settings: {
             ...current.settings,
             ...(p.settings ?? {}),

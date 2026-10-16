@@ -156,6 +156,43 @@ describe('modelChains (Mixture-of-Models) đã bị gỡ khỏi Settings', () =>
   });
 });
 
+describe('dead state theme đã bị gỡ (app light-only)', () => {
+  /*
+   * `theme` và `setTheme` chết từ đầu: không nơi nào gọi `setTheme`, và theme
+   * không được áp dụng ở đâu (không `data-theme`, không `<html class="dark">`).
+   *
+   * Test này canh việc GỠ. App cố ý chỉ có một theme sáng — `DESIGN.md` §7 và
+   * ràng buộc cứng #6; `tests/design-system.test.ts:1746-1754` cùng
+   * `tests/tool-trace.test.ts:772-774` đã cấm `dark:`. Thêm nút đổi theme là
+   * nút bấm không đổi màu, nên phải gỡ chứ không phải thêm UI.
+   */
+  it('không còn state theme trong store', () => {
+    const s = useAppStore.getState() as Record<string, unknown>;
+    expect('theme' in s, 'state theme phải bị gỡ').toBe(false);
+  });
+
+  it('không còn action setTheme', () => {
+    const s = useAppStore.getState() as Record<string, unknown>;
+    expect('setTheme' in s, 'action setTheme phải bị gỡ').toBe(false);
+  });
+
+  it('không ghi theme vào persist', () => {
+    const { partialize } = useAppStore.persist.getOptions() as PersistOptions;
+    const persisted = partialize!(useAppStore.getState());
+    expect(Object.keys(persisted)).not.toContain('theme');
+  });
+
+  it('storage cũ có khoá theme vẫn nạp được, không hỏng phiên', () => {
+    // Review Focus #5: user đang có `theme` trong localStorage từ phiên trước.
+    // `merge` spread `...p` nên khoá lạ lọt vào object — phải bị bỏ qua chứ
+    // không được ném lỗi làm hỏng cả phiên.
+    const { merge } = useAppStore.persist.getOptions() as PersistOptions;
+    expect(() =>
+      merge!({ theme: 'dark', settings: {} } as never, useAppStore.getState()),
+    ).not.toThrow();
+  });
+});
+
 describe('merge — khôi phục persisted không cần tăng version', () => {
   it('agentTools + forceEmulatedTools từ storage đè lên default', () => {
     const { merge } = useAppStore.persist.getOptions() as PersistOptions;
