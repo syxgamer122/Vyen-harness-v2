@@ -19,11 +19,6 @@ import {
   TOOL_CATEGORY_MAP,
   type ToolCategory,
 } from '@/lib/tool-catalog';
-import {
-  type CategoryId,
-  type ChainEntry,
-  DEFAULT_CHAINS,
-} from '@/lib/routing/categories';
 import type { ToolcallRule } from '@/lib/toolcall-rules';
 import {
   DEFAULT_MODEL_ROUTING,
@@ -214,8 +209,22 @@ export interface Settings {
    * cờ này — cờ này chỉ quyết định có GHI TỰ ĐỘNG hay không.
    */
   zeromemEnabled: boolean;
-  /** Mixture-of-models chains theo Category  */
-  modelChains?: Record<CategoryId, ChainEntry[]>;
+  /*
+   * `modelChains` (Mixture-of-Models) đÃ BỊ GỠ — 2026-10-16.
+   *
+   * UI cấu hình nó từng có, nhưng `chatRequestBody` không gửi `customChains` lên
+   * server, và server dùng khoá đó ở `app/api/chat/route.ts:1196,1296`. Chuỗi
+   * cấu hình vì thế không bao giờ tới nơi dùng, trong khi UI vẫn hiện đầy đủ ô,
+   * export/import JSON và ô chọn 8 hạng mục — người dùng nhập xong không thấy
+   * lỗi nào và tưởng đã áp dụng. Đây là "UI nói dối", nên gỡ hẳn thay vì ẩn.
+   *
+   * Dữ liệu cũ trong localStorage sẽ bị `merge` bỏ qua (không còn khoá trong
+   * `partialize`) — đúng như mong muốn: chuỗi chưa từng có tác dụng thì không có
+   * gì để mất.
+   *
+   * Lead/Worker Routing (`modelRouting`) thì ĐÃ nối đúng vào body
+   * (`use-chat-orchestration.ts:940-943`) nên được giữ.
+   */
   /** Quy tắc can thiệp gọi tool do người dùng tự viết */
   toolcallRules?: ToolcallRule[];
   /** Ánh xạ slash command tùy biến /<tên> -> recipeId (P2-10). */
@@ -284,7 +293,6 @@ const DEFAULT_SETTINGS: Settings = {
   modelRouting: { ...DEFAULT_MODEL_ROUTING },
   codeModeEnabled: false,
   zeromemEnabled: false,
-  modelChains: DEFAULT_CHAINS,
   toolcallRules: [],
   customSlashCommands: {},
 };
@@ -409,7 +417,6 @@ export const useAppStore = create<AppState>()(
           disabledSkills: s.settings.disabledSkills,
           modelRouting: s.settings.modelRouting,
           codeModeEnabled: s.settings.codeModeEnabled,
-          modelChains: s.settings.modelChains,
           toolcallRules: s.settings.toolcallRules,
           customSlashCommands: s.settings.customSlashCommands,
         },

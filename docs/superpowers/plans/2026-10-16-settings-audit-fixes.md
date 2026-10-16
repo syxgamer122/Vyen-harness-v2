@@ -320,7 +320,8 @@ Dọn import không còn dùng: `ALL_CATEGORIES`, `CATEGORY_DESCRIPTIONS`, `DEFA
 
 Giữ lại: `normalizeModelRoutingConfig`, `DEFAULT_MODEL_ROUTING`, `type ModelRoutingConfig`, `React`, `useState` (còn dùng ở `NumberField` và `RoutingModelSelect`), `Trash2`, `ArrowUp`, `ArrowDown`.
 
-**Không** xoá `settings.modelChains` khỏi `lib/store.ts:218,287,412` — dữ liệu người dùng phải sống.
+**Không** đụng `lib/routing/categories.ts` — server vẫn import từ đó
+(`app/api/chat/route.ts:68`, `components/hud/agent-hud.tsx:5`).
 
 - [ ] **Step 2: Sửa copy mục tìm kiếm `prov-routing`**
 

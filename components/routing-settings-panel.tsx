@@ -3,20 +3,11 @@
 import React, { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import {
-  ALL_CATEGORIES,
-  CATEGORY_DESCRIPTIONS,
-  DEFAULT_CHAINS,
-  validateModelChains,
-  type CategoryId,
-  type ChainEntry,
-} from '@/lib/routing/categories';
-import { EFFORT_LEVELS, type Effort } from '@/lib/model-contracts';
-import {
   DEFAULT_MODEL_ROUTING,
   normalizeModelRoutingConfig,
   type ModelRoutingConfig,
 } from '@/lib/model-routing';
-import { Download, Upload, RotateCcw, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 
 /**
  * Ô số của `LeadWorkerRoutingSection`.
@@ -89,281 +80,31 @@ function NumberField({
 }
 
 export function RoutingSettingsPanel() {
-  const settings = useAppStore((s) => s.settings);
-  const updateSettings = useAppStore((s) => s.updateSettings);
-  const activeProvider = useAppStore((s) => s.activeProvider);
-
-  /* BYOK 100%: model cho chuỗi đến từ provider người dùng đang bật. Không có
-     catalog của app nên danh sách rỗng thì panel không cho thêm entry — thêm
-     model không có trong danh sách sẽ 404 ngay lượt gửi đầu. */
-  const providerModels = activeProvider?.models ?? [];
-
-  const chains = settings.modelChains ?? DEFAULT_CHAINS;
-  const [activeCat, setActiveCat] = useState<CategoryId>('architect');
-  const [importStatus, setImportStatus] = useState<string | null>(null);
-
-  const currentChain = chains[activeCat] ?? DEFAULT_CHAINS[activeCat] ?? [];
-
-  const updateCurrentChain = (newChain: ChainEntry[]) => {
-    const updated = {
-      ...chains,
-      [activeCat]: newChain,
-    };
-    updateSettings({ modelChains: updated });
-  };
-
-  const handleModelChange = (index: number, model: string) => {
-    const next = [...currentChain];
-    next[index] = { ...next[index], model };
-    updateCurrentChain(next);
-  };
-
-  const handleEffortChange = (index: number, effort: Effort) => {
-    const next = [...currentChain];
-    next[index] = { ...next[index], effort };
-    updateCurrentChain(next);
-  };
-
-  const handleMove = (index: number, direction: 'up' | 'down') => {
-    const next = [...currentChain];
-    const targetIdx = direction === 'up' ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= next.length) return;
-    const temp = next[index];
-    next[index] = next[targetIdx];
-    next[targetIdx] = temp;
-    updateCurrentChain(next);
-  };
-
-  const handleRemove = (index: number) => {
-    if (currentChain.length <= 1) return; // Giữ ít nhất 1 entry
-    const next = currentChain.filter((_, i) => i !== index);
-    updateCurrentChain(next);
-  };
-
-  const handleAdd = () => {
-    /* Chỉ thêm được khi provider đang bật có model — mặc định lấy model đầu
-       tiên trong danh sách đó. `<select>` ở dưới render option từ cùng nguồn,
-       nên id bịa sẽ khiến hàng mới có `value` không khớp option nào và trình
-       duyệt hiển thị nhầm option đầu trong khi chain thật trỏ sang model khác. */
-    const first = providerModels[0];
-    if (!first) return;
-    const next = [...currentChain, { model: first.id, effort: 'medium' as Effort }];
-    updateCurrentChain(next);
-  };
-
-  const handleResetDefaults = () => {
-    if (window.confirm('Xoá toàn bộ chuỗi model đã cấu hình cho mọi hạng mục?')) {
-      updateSettings({ modelChains: DEFAULT_CHAINS });
-    }
-  };
-
-  const handleExportJson = () => {
-    const data = JSON.stringify(chains, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'model-chains.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const rawJson = JSON.parse(String(event.target?.result ?? '{}'));
-        const validatedChains = validateModelChains(rawJson);
-        updateSettings({ modelChains: validatedChains });
-        setImportStatus('Nạp cấu hình JSON thành công!');
-        setTimeout(() => setImportStatus(null), 3000);
-      } catch (err: any) {
-        setImportStatus(`Lỗi: ${err?.message ?? 'Không đọc được file'}`);
-      }
-    };
-    reader.readAsText(file);
-  };
-
+  /*
+   * CHỈ còn Lead/Worker Routing. Khối "Mixture-of-Models" đã bị gỡ.
+   *
+   * Lý do KHÔNG phải xung đột thiết kế mà là sợi dây đứt: `chatRequestBody`
+   * (`react/use-chat-orchestration.ts:2896-2947`) không chứa `customChains`, nên
+   * server đọc ở `app/api/chat/route.ts:742,1093` và dùng ở `:1196,1296` không
+   * bao giờ nhận được gì. Thêm nữa `:546-551` ép `model = MODELS[0].id` khi có
+   * provider — mà khai chains thì bắt buộc có provider — nên `route.ts:1191` luôn
+   * tính `activeCategory = undefined` và nhánh chains không bao giờ chạy.
+   *
+   * UI vẫn hiện đầy đủ ô cấu hình chuỗi, export/import JSON, ô chọn 8 hạng mục:
+   * người dùng nhập công sức, không báo lỗi, rồi tưởng đã áp dụng. Xoá hẳn còn
+   * hơn ẩn — ẩn đi thì người đã cấu hình không hiểu vì sao mất.
+   *
+   * Lead/Worker thì đã nối đúng vào body qua `routingBodyFor`
+   * (`use-chat-orchestration.ts:940-943`) nên GIỮ. Đó là phần có ích.
+   *
+   * `lib/routing/categories.ts` GIỮ NGUYÊN: server import `resolveRoute` /
+   * `categoryChainHasModel` (`app/api/chat/route.ts:68`) và HUD import
+   * `CATEGORY_DESCRIPTIONS` (`components/hud/agent-hud.tsx:5`). Dọn nhánh chết
+   * phía server là việc riêng, đụng route.ts >1200 dòng.
+   */
   return (
     <div className="space-y-4 text-ui font-sans">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-subtle pb-2.5">
-        <div>
-          <h3 className="text-read font-semibold text-primary">Mixture-of-Models Routing</h3>
-          <p className="field-hint">
-            Cấu hình chuỗi dự phòng model:effort theo từng hạng mục công việc.
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handleExportJson}
-            title="Xuất cấu hình JSON"
-            className="btn-secondary px-2 py-1"
-          >
-            <Download size={12} aria-hidden="true" />
-            Export
-          </button>
-          <label className="btn-secondary cursor-pointer px-2 py-1">
-            <Upload size={12} aria-hidden="true" />
-            Import
-            <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
-          </label>
-          <button
-            type="button"
-            onClick={handleResetDefaults}
-            title="Khôi phục mặc định"
-            aria-label="Khôi phục mặc định chuỗi model"
-            className="icon-btn icon-btn-sm"
-          >
-            <RotateCcw size={13} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
-      {importStatus && (
-        <p className="notice border-accent/40 text-meta text-accent" role="status">
-          {importStatus}
-        </p>
-      )}
-
-      {/* Category selector buttons */}
-      <div className="flex flex-wrap gap-1">
-        {ALL_CATEGORIES.map((cat) => {
-          const desc = CATEGORY_DESCRIPTIONS[cat];
-          const isSelected = activeCat === cat;
-          return (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setActiveCat(cat)}
-              className={
-                isSelected ? 'btn-primary px-2.5 py-1' : 'btn-secondary px-2.5 py-1 text-tertiary'
-              }
-            >
-              {desc.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Active Category Description */}
-      <div className="border border-subtle bg-raised p-2.5">
-        <div className="mb-0.5 font-semibold text-primary">
-          {CATEGORY_DESCRIPTIONS[activeCat]?.label}
-        </div>
-        <div className="text-meta leading-relaxed text-tertiary">
-          {CATEGORY_DESCRIPTIONS[activeCat]?.description}
-        </div>
-      </div>
-
-      {/* Chain list for active category */}
-      <div className="space-y-2">
-        <div className="text-meta font-semibold uppercase tracking-wider text-tertiary">
-          Chuỗi ưu tiên (Fallback Chain) — vị trí 1 thử trước
-        </div>
-
-        {providerModels.length === 0 ? (
-          <p className="border border-subtle bg-raised p-2.5 text-meta leading-relaxed text-tertiary">
-            Chưa có nhà cung cấp nào được chọn, nên chưa biết model nào dùng được.
-            Thêm nhà cung cấp ở phần trên và bấm kiểm tra kết nối để tải danh sách
-            model, rồi quay lại đây khai chuỗi. Hạng mục chưa có chuỗi thì Vyen báo
-            &quot;chưa chọn model&quot; khi gửi, không tự dùng model nào thay bạn.
-          </p>
-        ) : currentChain.length === 0 ? (
-          <p className="border border-subtle bg-raised p-2.5 text-meta leading-relaxed text-tertiary">
-            Hạng mục này chưa có chuỗi model. Bấm &quot;Thêm model dự phòng vào
-            chuỗi&quot; bên dưới để bắt đầu.
-          </p>
-        ) : null}
-
-        {currentChain.map((entry, idx) => (
-          <div
-            key={idx}
-            className="flex items-center gap-2 border border-subtle bg-raised p-2"
-          >
-            <span className="w-5 text-center font-bold text-tertiary">#{idx + 1}</span>
-
-            {/* Model select — chỉ model của provider đang bật */}
-            <select
-              value={entry.model}
-              onChange={(e) => handleModelChange(idx, e.target.value)}
-              className="field-sm flex-1"
-            >
-              {providerModels.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name || m.id} ({m.id})
-                </option>
-              ))}
-            </select>
-
-            {/* Effort select */}
-            <select
-              value={entry.effort}
-              onChange={(e) => handleEffortChange(idx, e.target.value as Effort)}
-              className="field-sm w-24"
-            >
-              {EFFORT_LEVELS.map((eff) => (
-                <option key={eff} value={eff}>
-                  {eff}
-                </option>
-              ))}
-            </select>
-
-            {/* Reorder & Remove buttons */}
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                disabled={idx === 0}
-                onClick={() => handleMove(idx, 'up')}
-                className="icon-btn icon-btn-sm"
-                title="Di chuyển lên"
-                aria-label={`Di chuyển model ${idx + 1} lên`}
-              >
-                <ArrowUp size={13} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                disabled={idx === currentChain.length - 1}
-                onClick={() => handleMove(idx, 'down')}
-                className="icon-btn icon-btn-sm"
-                title="Di chuyển xuống"
-                aria-label={`Di chuyển model ${idx + 1} xuống`}
-              >
-                <ArrowDown size={13} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                disabled={currentChain.length <= 1}
-                onClick={() => handleRemove(idx)}
-                className="icon-btn icon-btn-sm icon-btn-danger"
-                title="Xóa model khỏi chuỗi"
-                aria-label={`Xóa model khỏi chuỗi ${idx + 1}`}
-              >
-                <Trash2 size={13} aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {providerModels.length > 0 && (
-          <button
-            type="button"
-            onClick={handleAdd}
-            className="btn-secondary w-full py-1.5"
-          >
-            <Plus size={14} aria-hidden="true" />
-            Thêm model dự phòng vào chuỗi
-          </button>
-        )}
-      </div>
-
-      <div className="border-t border-subtle pt-3">
-        <LeadWorkerRoutingSection />
-      </div>
+      <LeadWorkerRoutingSection />
     </div>
   );
 }

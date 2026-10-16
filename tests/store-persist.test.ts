@@ -125,6 +125,37 @@ describe('updateSettings — approvalPolicy là nguồn sự thật duy nhất',
   });
 });
 
+describe('modelChains (Mixture-of-Models) đã bị gỡ khỏi Settings', () => {
+  /*
+   * Tính năng này CẦN bị gỡ và test này canh việc gỡ đó.
+   *
+   * UI từng cấu hình đầy đủ chuỗi fallback theo 8 hạng mục, nhưng
+   * `chatRequestBody` không gửi `customChains` lên server, nên nó không bao giờ
+   * có tác dụng. Giữ UI là bắt người dùng nhập công sức rồi tưởng đã áp dụng.
+   *
+   * `modelRouting` (Lead/Worker) thì đã nối đúng vào body nên PHẢI còn — đây
+   * là test bảo vệ ranh giới, không phải test chỉ "mọi thứ biến mất".
+   */
+  it('không còn field modelChains trong Settings', () => {
+    const s = useAppStore.getState().settings as Record<string, unknown>;
+    expect('modelChains' in s, 'modelChains phải bị gỡ khỏi Settings').toBe(false);
+  });
+
+  it('không còn ghi modelChains vào persist', () => {
+    const { partialize } = useAppStore.persist.getOptions() as PersistOptions;
+    const persisted = partialize!(useAppStore.getState());
+    expect(Object.keys(persisted.settings ?? {})).not.toContain('modelChains');
+  });
+
+  it('GIỮ modelRouting — Lead/Worker đã nối đúng vào body, không được gỡ theo', () => {
+    const s = useAppStore.getState().settings as Record<string, unknown>;
+    expect(s).toHaveProperty('modelRouting');
+    const { partialize } = useAppStore.persist.getOptions() as PersistOptions;
+    const persisted = partialize!(useAppStore.getState());
+    expect(Object.keys(persisted.settings ?? {})).toContain('modelRouting');
+  });
+});
+
 describe('merge — khôi phục persisted không cần tăng version', () => {
   it('agentTools + forceEmulatedTools từ storage đè lên default', () => {
     const { merge } = useAppStore.persist.getOptions() as PersistOptions;
