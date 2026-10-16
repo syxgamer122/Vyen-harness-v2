@@ -370,20 +370,6 @@ export function ToolPermissionsTable() {
         <span>Hiển thị {filteredRows.length} / {allRows.length} công cụ</span>
         <span>Mọi thay đổi được lưu tự động (Zustand + Dexie v14)</span>
       </div>
-
-      {/*
-       * LỖ HỔNG ĐÃ BIẾT — báo thay vì giấu. `getEffectiveToolPermission` còn
-       * tra khoá DẠNG GLOB (vd `fs_read:src/**`, `*.env*`) trước khi tới khoá
-       * tool ở trên (lib/tool-permissions.ts:237-277), nhưng bảng này chỉ ghi
-       * được tên tool trần. Nghĩa là khoá glob đã có sẵn vẫn có hiệu lực,
-       * chỉ là không có ô nào để tạo ra nó. Sửa cần một editor riêng cho khoá
-       * theo pattern — nằm ngoài phạm vi đợt retoken này.
-       */}
-      <p className="field-hint">
-        Bảng này đặt quyền theo TÊN TOOL. Ngoài ra còn tồn tại khoá theo mẫu đường dẫn
-        (vd <code className="claude-inline-code">fs_read:src/**</code>) được áp trước
-        bảng này — chúng vẫn có hiệu lực nhưng chưa có ô để sửa.
-      </p>
     </div>
   );
 }

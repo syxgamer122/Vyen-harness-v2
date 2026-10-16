@@ -15,8 +15,6 @@ import { normalizeMessageToolInvocations, normalizeToolCallPairing } from '@/lib
 import { recordAuditLog, queryAuditLogs, computePayloadHash, clearAuditLogs } from '@/lib/audit-log';
 import {
   getEffectiveToolPermission,
-  matchesGlobPattern,
-  extractTargetPath,
   isDynamicMcpTool,
 } from '@/lib/tool-permissions';
 import { shouldAutoApprove } from '@/lib/auto-pilot';
@@ -257,39 +255,6 @@ describe('P3.5: Immutable Audit Log', () => {
 });
 
 describe('P3.6: Policy-as-Data Scope & Dynamic MCP Enforcement', () => {
-  it('matchesGlobPattern matches single and multi-level paths', () => {
-    expect(matchesGlobPattern('src/index.ts', 'src/*.ts')).toBe(true);
-    expect(matchesGlobPattern('src/sub/index.ts', 'src/*.ts')).toBe(false);
-
-    // Globstar /**/ khớp cả 0 cấp thư mục lẫn nhiều cấp
-    expect(matchesGlobPattern('src/button.tsx', 'src/**/*.tsx')).toBe(true);
-    expect(matchesGlobPattern('src/components/button.tsx', 'src/**/*.tsx')).toBe(true);
-    expect(matchesGlobPattern('src/a/b/c/button.tsx', 'src/**/*.tsx')).toBe(true);
-    expect(matchesGlobPattern('dist/bundle.js', 'src/**/*.js')).toBe(false);
-
-    // Chuẩn hóa đường dẫn: './' ở đầu và backslash Windows
-    expect(matchesGlobPattern('./src/button.tsx', 'src/**/*.tsx')).toBe(true);
-    expect(matchesGlobPattern('src\\components\\button.tsx', 'src/**/*.tsx')).toBe(true);
-
-    // Globstar ở đầu hoặc cuối
-    expect(matchesGlobPattern('button.tsx', '**/*.tsx')).toBe(true);
-    expect(matchesGlobPattern('src/button.tsx', '**/*.tsx')).toBe(true);
-    expect(matchesGlobPattern('src', 'src/**')).toBe(true);
-    expect(matchesGlobPattern('src/sub/file.ts', 'src/**')).toBe(true);
-
-    // Env wildcard patterns
-    expect(matchesGlobPattern('.env.local', '*.env*')).toBe(true);
-    expect(matchesGlobPattern('config.env.production', '*.env*')).toBe(true);
-  });
-
-  it('extractTargetPath extracts path from various argument formats', () => {
-    expect(extractTargetPath({ path: 'a.txt' })).toBe('a.txt');
-    expect(extractTargetPath({ file: 'b.txt' })).toBe('b.txt');
-    expect(extractTargetPath({ relPath: 'c.txt' })).toBe('c.txt');
-    expect(extractTargetPath({ targetFile: 'd.txt' })).toBe('d.txt');
-    expect(extractTargetPath('e.txt')).toBe('e.txt');
-  });
-
   it('isDynamicMcpTool correctly classifies dynamic MCP tools vs built-in tools', () => {
     expect(isDynamicMcpTool('mcp__github__create_issue')).toBe(true);
     expect(isDynamicMcpTool('mcp__postgres__execute_query')).toBe(true);
@@ -347,34 +312,5 @@ describe('P3.6: Policy-as-Data Scope & Dynamic MCP Enforcement', () => {
         },
       }),
     ).toBe(true);
-  });
-
-  it('shouldAutoApprove respects path glob pattern permissions', () => {
-    const perms = {
-      'fs_write:src/**/*.ts': 'auto' as const,
-      'fs_write:*.env*': 'deny' as const,
-    };
-
-    // Safe path matches auto
-    expect(
-      shouldAutoApprove({
-        toolName: 'fs_write',
-        args: { path: 'src/models/user.ts' },
-        policy: 'smart',
-        autoPilotEnabled: true,
-        toolPermissions: perms,
-      }),
-    ).toBe(true);
-
-    // Sensitive path matches deny
-    expect(
-      shouldAutoApprove({
-        toolName: 'fs_write',
-        args: { path: '.env.production' },
-        policy: 'never',
-        autoPilotEnabled: true,
-        toolPermissions: perms,
-      }),
-    ).toBe(false);
   });
 });

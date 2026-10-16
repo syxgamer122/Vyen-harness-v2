@@ -253,28 +253,6 @@ describe('P1-6: Tool permissions & 4 modes', () => {
       expect(getEffectiveToolPermission('fs_read', perms)).toBe('default');
     });
 
-    it('hỗ trợ path glob pattern trong toolPermissions (P3.6)', () => {
-      const perms: ToolPermissions = {
-        'fs_write:src/**/*.ts': 'auto',
-        'fs_write:*.env*': 'deny',
-        'path:dist/**': 'ask',
-      };
-
-      // Match tool + path glob (cả 0 cấp thư mục trung gian và lồng nhiều cấp)
-      expect(getEffectiveToolPermission('fs_write', perms, { path: 'src/utils.ts' })).toBe('auto');
-      expect(getEffectiveToolPermission('fs_write', perms, { path: './src/utils.ts' })).toBe('auto');
-      expect(getEffectiveToolPermission('fs_write', perms, { path: 'src/lib/utils.ts' })).toBe('auto');
-      expect(getEffectiveToolPermission('fs_write', perms, { path: 'src/deep/nested/utils.ts' })).toBe('auto');
-      expect(getEffectiveToolPermission('fs_write', perms, { path: '.env.local' })).toBe('deny');
-      expect(getEffectiveToolPermission('fs_write', perms, { path: 'config.env.production' })).toBe('deny');
-      // Tool khác không khớp fs_write
-      expect(getEffectiveToolPermission('fs_read', perms, { path: 'src/lib/utils.ts' })).toBe('default');
-      // Generic path rule (khớp dist/** cả root dist và subpaths)
-      expect(getEffectiveToolPermission('fs_read', perms, { path: 'dist/bundle.js' })).toBe('ask');
-      expect(getEffectiveToolPermission('fs_read', perms, { path: 'dist/chunks/app.js' })).toBe('ask');
-      expect(getEffectiveToolPermission('fs_read', perms, { path: 'dist' })).toBe('ask');
-    });
-
     it('áp dụng deny-by-default cho dynamic MCP tools chưa được phê duyệt (P3.6)', () => {
       const emptyPerms: ToolPermissions = {};
       // Tool MCP động dạng mcp__<server>__<tool> chưa cấu hình -> deny
@@ -393,6 +371,21 @@ describe('P1-6: Tool permissions & 4 modes', () => {
       );
       expect(src).toMatch(/CATEGORY_KEYS/);
       expect(src).toMatch(/CollidesWithGroupNote/);
+
+    it('KHÔNG còn tầng khoá glob trong engine — không có UI nào tạo được nó', () => {
+      // Đột biến bị chặn: ai thêm lại bước "tool:glob" / "*.env*" mà không kèm
+      // UI sẽ hồi sinh một tầng TRA TRƯỚC MỌI THỨ, thắng theo thứ tự chèn
+      // (thay đổi cả khi restart vì Dexie trả khoá theo thứ tự lexicographic),
+      // và `deny` trong đó chỉ mở modal chứ KHÔNG chặn cứng vì `isToolDenied`
+      // không nhận tham số `args`. Xem JSDoc của `getEffectiveToolPermission`.
+      const src = fs.readFileSync(
+        path.resolve(__dirname, '../lib/tool-permissions.ts'),
+        'utf8',
+      );
+      expect(src).not.toMatch(/matchesGlobPattern/);
+      expect(src).not.toMatch(/extractTargetPath/);
+      expect(src).not.toMatch(/key\.indexOf\(':'\)/);
+    });
     });
   });
 
