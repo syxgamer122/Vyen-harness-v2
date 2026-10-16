@@ -1,9 +1,41 @@
 import { describe, it, expect } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   parseSlashCommand,
   normalizeModeParam,
   BUILTIN_SLASH_COMMANDS,
 } from '@/lib/slash-commands';
+
+describe('Lệnh slash mở Cài đặt tới đúng tab (source-scan)', () => {
+  // Đây là HÀNH VI NGƯỜI DÙNG THẤY: gõ `/tools` rồi bấm xem phê duyệt. Assert
+  // source thay vì hàm vì orchestration hook cần cả React + store, và điều ta
+  // cần ghim ở đây chính là ĐOẠN LỆNH truyền chuỗi tab cho `openSettings` —
+  // đổi chuỗi đó là đổi tab người dùng nhìn thấy.
+  const src = fs.readFileSync(path.resolve(__dirname, '../react/use-chat-orchestration.ts'), 'utf8');
+
+  it('lệnh tools mở tab safety — nơi có bảng phân quyền từng công cụ', () => {
+    // Đột biến bị chặn: đổi 'safety' thành alias cũ 'chung' → resolveSettingsTab
+    // map 'chung' sang 'appearance' (`settings-tabs.ts:98-99`), tab không có cài
+    // đặt công cụ nào, toast thì vẫn nói "đã mở cài đặt công cụ".
+    expect(src).toMatch(/slash\.kind === 'tools'[\s\S]{0,400}openSettings\('safety'\)/);
+  });
+
+  it('không còn truyền alias cũ cho lệnh tools', () => {
+    expect(src).not.toMatch(/slash\.kind === 'tools'[\s\S]{0,400}openSettings\('chung'\)/);
+  });
+});
+
+describe('onCycleAutoPilot chỉ truyền approvalPolicy', () => {
+  const src = fs.readFileSync(path.resolve(__dirname, '../react/use-chat-orchestration.ts'), 'utf8');
+
+  it('không truyền autoPilot kèm approvalPolicy — store tự suy ra rồi ghi đè', () => {
+    // `store.ts:355-357` tính `next.autoPilot` từ `approvalPolicy` và GHI ĐÈ giá
+    // trị truyền vào. Truyền thêm chỉ làm đọc code tưởng `autoPilot` còn là nút
+    // độc lập. Đột biến bị chặn: thêm lại `autoPilot:` vào một nhánh → đỏ.
+    expect(src).not.toMatch(/updateSettings\(\{\s*approvalPolicy:\s*'[a-z_]+',\s*autoPilot:/);
+  });
+});
 
 describe('Slash Commands Engine (P2-10)', () => {
   it('định nghĩa đầy đủ 8 lệnh slash built-in chuẩn', () => {

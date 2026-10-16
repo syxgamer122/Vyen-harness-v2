@@ -88,6 +88,43 @@ describe('partialize — đủ khoá settings sống qua reload', () => {
   });
 });
 
+describe('updateSettings — approvalPolicy là nguồn sự thật duy nhất', () => {
+  /*
+   * `agentTools` và `autoPilot` là GIÁ TRỊ SUY RA, không phải setting độc lập:
+   * `store.ts:355-357` tính cả hai từ `approvalPolicy` rồi ghi đè lên bất kỳ thứ
+   * gì caller truyền vào. Gọi chỉ với `approvalPolicy` phải cho ra đủ ba khoá —
+   * đây là hợp đồng mà `onCycleAutoPilot` dựa vào sau khi bỏ tham số thừa.
+   */
+  it('set approvalPolicy tự suy ra autoPilot + agentTools', () => {
+    const set = useAppStore.getState().updateSettings;
+
+    set({ approvalPolicy: 'never' });
+    expect(useAppStore.getState().settings.approvalPolicy).toBe('never');
+    expect(useAppStore.getState().settings.autoPilot).toBe(true);
+    expect(useAppStore.getState().settings.agentTools).toBe(true);
+
+    set({ approvalPolicy: 'chat_only' });
+    expect(useAppStore.getState().settings.autoPilot).toBe(false);
+    expect(useAppStore.getState().settings.agentTools).toBe(false);
+
+    set({ approvalPolicy: 'smart' });
+    expect(useAppStore.getState().settings.autoPilot).toBe(true);
+    expect(useAppStore.getState().settings.agentTools).toBe(true);
+
+    set({ approvalPolicy: 'always' });
+    expect(useAppStore.getState().settings.autoPilot).toBe(false);
+    expect(useAppStore.getState().settings.agentTools).toBe(true);
+  });
+
+  it('autoPilot truyền vào bị ghi đè, không phải cửa thứ hai để bật YOLO', () => {
+    // Đột biến bị chặn: đổi `next.autoPilot = ...` thành chỉ đọc `partial.autoPilot`
+    // thì caller bật được YOLO khi policy đang Manual — hai đường vào một trạng thái.
+    useAppStore.getState().updateSettings({ approvalPolicy: 'always', autoPilot: true });
+    expect(useAppStore.getState().settings.approvalPolicy).toBe('always');
+    expect(useAppStore.getState().settings.autoPilot).toBe(false);
+  });
+});
+
 describe('merge — khôi phục persisted không cần tăng version', () => {
   it('agentTools + forceEmulatedTools từ storage đè lên default', () => {
     const { merge } = useAppStore.persist.getOptions() as PersistOptions;

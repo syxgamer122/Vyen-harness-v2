@@ -6237,7 +6237,15 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
           }
 
           if (slash.kind === 'tools') {
-            useAppStore.getState().openSettings('chung');
+            /*
+             * `'safety'`, KHÔNG phải alias cũ `'chung'` — alias đó map sang tab
+             * `appearance` (`settings-tabs.ts:98-99`), và tab đó không có cài đặt
+             * công cụ nào: chỉ có tham số model, nhập liệu và hiệu năng. Người dùng
+             * gõ `/tools` sẽ bị dẫn tới một tab trống rồi nghe toast nói "đã mở cài
+             * đặt công cụ". `resolveSettingsTab` giữ `'safety'` nguyên vẹn qua nhánh
+             * default của nó.
+             */
+            useAppStore.getState().openSettings('safety');
             if (slash.query) {
               showNotice(`Đã mở cài đặt công cụ (tìm kiếm: ${slash.query}).`, 3000);
             }
@@ -6303,17 +6311,23 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
 
   const onCycleAutoPilot = useCallback(() => {
     // Chu trình 4 chế độ: Manual (always) -> Smart (smart) -> Autonomous (never) -> Chat Only (chat_only) -> Manual (always)
+    //
+    // CHỈ truyền `approvalPolicy`. `store.ts:355-357` tự tính lại `autoPilot`
+    // và `agentTools` từ nó rồi GHI ĐÈ, nên `autoPilot` truyền vào là biến chết
+    // — đọc code tưởng nó còn là nút độc lập thì đang hiểu sai. Đọc
+    // `autoPilot` bên dưới để tương thích persist cũ vẫn đúng: đó là fallback,
+    // không phải đầu vào.
     const current = approvalPolicy ?? (autoPilot ? 'smart' : 'always');
     if (current === 'always') {
-      updateSettings({ approvalPolicy: 'smart', autoPilot: true });
+      updateSettings({ approvalPolicy: 'smart' });
     } else if (current === 'smart') {
-      updateSettings({ approvalPolicy: 'never', autoPilot: true });
+      updateSettings({ approvalPolicy: 'never' });
     } else if (current === 'never') {
-      updateSettings({ approvalPolicy: 'chat_only', autoPilot: false });
+      updateSettings({ approvalPolicy: 'chat_only' });
     } else if (current === 'chat_only') {
-      updateSettings({ approvalPolicy: 'always', autoPilot: false });
+      updateSettings({ approvalPolicy: 'always' });
     } else {
-      updateSettings({ approvalPolicy: 'smart', autoPilot: true });
+      updateSettings({ approvalPolicy: 'smart' });
     }
   }, [updateSettings, autoPilot, approvalPolicy]);
 
