@@ -82,14 +82,6 @@ describe('chat route media retirement', () => {
     await expectRetired({ model: 'sora-2' }, false);
   });
 
-  it('rejects the category-selected generation model', async () => {
-    await expectRetired({ category: 'capable', customChains: { capable: [{ model: 'flux-pro', effort: 'medium' }] } });
-  });
-
-  it('rejects a retired fallback before calling the chat head of a category chain', async () => {
-    await expectRetired({ category: 'capable', customChains: { capable: [{ model: 'gpt-4o', effort: 'medium' }, { model: 'sora-2', effort: 'medium' }] } }, false);
-  });
-
   it('rejects a resolved provider alias or fallback', async () => {
     vi.spyOn(models, 'resolveChainFor').mockReturnValue(['gpt-4o', 'flux-pro']);
     await expectRetired({ model: 'gpt-4o', visionModel: 'qwen-vl' }, false);

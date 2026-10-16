@@ -65,7 +65,7 @@ import {
 } from '@/lib/recipes/subrecipe-exec';
 import { SERVER_MAX_STEPS, TOOL_RESULT_MAX_CHARS, truncateToolResult } from '@/lib/tool-limits';
 import { redactSecretText, redactSecretsDeep } from '@/lib/secret-registry';
-import { resolveRoute, categoryChainHasModel, type CategoryId, type RouteReceipt, type ChainEntry } from '@/lib/routing/categories';
+import type { RouteReceipt } from '@/lib/routing/categories';
 import { scoreRequest } from '@/lib/routing/score-request';
 import { resolveContract, enforceContractEffort } from '@/lib/model-contracts';
 import { isToolFailure } from '@/lib/model-routing';
@@ -727,28 +727,6 @@ const BodySchema = z.object({
      và lib/store.ts (120): schema chặn 64 sẽ từ chối model `vendor/repo/name`
      dài hợp lệ mà mọi tầng sau đó đều chấp nhận. */
   model: z.string().min(1).max(120).optional(),
-  category: z
-    .enum([
-      'ultrabrain',
-      'deep',
-      'architect',
-      'capable',
-      'quick',
-      'writing',
-      'visual-engineering',
-      'simple-work',
-    ])
-    .optional(),
-  customChains: z
-    .record(
-      z.array(
-        z.object({
-          model: z.string().min(1).max(120),
-          effort: z.enum(['low', 'medium', 'high', 'max']),
-        }),
-      ),
-    )
-    .optional(),
   temperature: z.number().min(0).max(2).optional(),
   thinkingLevel: z.enum(THINKING_LEVELS).optional(),
   /* Model vision do client chọn từ danh sách model của provider, dùng cho
@@ -1089,8 +1067,6 @@ export async function POST(req: Request) {
 
     let {
       model,
-      category: requestedCategory,
-      customChains,
       temperature,
       system,
       thinkingLevel,
@@ -1188,50 +1164,50 @@ export async function POST(req: Request) {
       isPlanMode: agentMode === 'plan',
     });
 
-    const activeCategory = requestedCategory ?? (model ? undefined : scoredRequest.category);
+    /* BYOK 100%: không có model mặc định của máy chủ, nên người dùng phải chọn
+       một model từ provider của họ (picker chỉ lấy danh sách từ /v1/models).
+       Không có model thì báo rõ thay vì rơi về một model bất kỳ.
 
-    let routeReceipt: RouteReceipt | null;
-    let selectedModelId: string;
-
-    if (activeCategory && categoryChainHasModel(activeCategory, customChains)) {
-      routeReceipt = resolveRoute(activeCategory, {
-        customChains,
-        signals: scoredRequest.signals,
-      });
-      /* categoryChainHasModel đã đảm bảo chuỗi có phần tử; null ở đây là
-         bất khả khả xảy, nên báo lỗi thay vì trả receipt rỗng. */
-      if (!routeReceipt) {
-        return jsonError(requestId, 400, 'MODEL_REQUIRED', 'Chuỗi model của hạng mục này rỗng.');
-      }
-      selectedModelId = routeReceipt.selected.model;
-    } else {
-      /* BYOK 100%: không có model mặc định của máy chủ. Người dùng phải chọn
-         một model từ provider của họ (picker chỉ lấy danh sách từ /v1/models),
-         hoặc tự khai chuỗi cho hạng mục ở Cài đặt → Định tuyến. Không có model
-         thì báo rõ thay vì rơi về một model bất kờ. */
-      if (!model) {
-        return jsonError(
-          requestId,
-          400,
-          'MODEL_REQUIRED',
-          'Chưa chọn model. Hãy mở Cài đặt → Nhà cung cấp để thêm provider và tải ' +
-            'danh sách model, hoặc khai chuỗi model cho hạng mục này.',
-        );
-      }
-      selectedModelId = model;
-      const contract = resolveContract(selectedModelId);
-      const enforced = enforceContractEffort(contract, 'medium');
-      routeReceipt = {
-        category: scoredRequest.category,
-        selected: {
-          model: selectedModelId,
-          effort: enforced.effectiveEffort,
-        },
-        chainPosition: 0,
-        signals: scoredRequest.signals,
-        ...(enforced.changed ? { effortChange: enforced.changed } : {}),
-      };
+       Nhánh routing theo chuỗi hạng mục (Mixture-of-Models) đã bị gỡ ở đây:
+       client không bao giờ gửi `customChains`/`category`, và ngay cả khi gửi thì
+       `model` luôn khác rỗng nên `activeCategory` cũng rơi về undefined.
+       `scoreRequest` vẫn chạy vì `routeReceipt.category` nuôi badge hạng mục ở
+       HUD (`components/hud/agent-hud.tsx`). */
+    if (!model) {
+      return jsonError(
+        requestId,
+        400,
+        'MODEL_REQUIRED',
+        'Chưa chọn model. Hãy mở Cài đặt → Model & Nhà cung cấp để thêm provider và tải danh sách model.',
+      );
     }
+    const selectedModelId = model;
+    const contract = resolveContract(selectedModelId);
+    /*
+     * Receipt phải phản ánh MỨC SUY LUẬN THẬT, không phải hằng số.
+     *
+     * Trước đây chỗ này hardcode `'medium'`, và `lib/prompt/protocol.ts:154`
+     * `calibrationFor` chỉ chạy khi effort là `high|max` ⇒ khối
+     * `[ĐIỀU PHỐI <FAMILY>]` trong system prompt không bao giờ được chèn
+     * (trừ `claude-opus-5` có `effortFloor: 'high'` trong contract). HUD cũng
+     * in effort của receipt chứ không phải effort thật.
+     *
+     * Effort thật gửi provider đi đường RIÊNG — `thinkingLevel` → `:2399` →
+     * `providerOptions.openai.reasoningEffort` — nên người dùng không mất gì;
+     * đây chỉ là receipt nói dối. `ThinkingLevel` và `Effort` cùng tập 4 giá
+     * trị `low|medium|high|max` nên lấy thẳng được.
+     */
+    const enforced = enforceContractEffort(contract, thinkingLevel ?? 'medium');
+    const routeReceipt: RouteReceipt = {
+      category: scoredRequest.category,
+      selected: {
+        model: selectedModelId,
+        effort: enforced.effectiveEffort,
+      },
+      signals: scoredRequest.signals,
+      ...(enforced.changed ? { effortChange: enforced.changed } : {}),
+    };
+
 
     /* Provenance cho agentic tools: URL được phép web_fetch = URL người dùng
        tự gắn trong tin nhắn + URL nằm trong webContext (kết quả search phía
@@ -1293,15 +1269,9 @@ export async function POST(req: Request) {
     };
     const upstreamBase = providerBase ?? null;
 
-    const defaultChainModels = activeCategory && !model && categoryChainHasModel(activeCategory, customChains)
-      ? (customChains?.[activeCategory]?.map((e) => e.model) ?? [])
-      : undefined;
-
     let modelChain: readonly string[] = providerBase
       ? [selectedModelId]
-      : (defaultChainModels && defaultChainModels.length > 0)
-        ? defaultChainModels
-        : resolveChainFor(selectedModelId);
+      : resolveChainFor(selectedModelId);
     if (modelChain.some(retiredMediaModel)) {
       return mediaGenerationRetired(requestId);
     }

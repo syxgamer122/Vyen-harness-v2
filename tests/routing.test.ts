@@ -2,16 +2,15 @@ import { describe, it, expect } from 'vitest';
 import {
   scoreRequest,
 } from '@/lib/routing/score-request';
-import {
-  resolveRoute,
-  validateModelChains,
-  categoryChainHasModel,
-  DEFAULT_CHAINS,
-  ALL_CATEGORIES,
-  type CategoryId,
-} from '@/lib/routing/categories';
+import { ALL_CATEGORIES, type CategoryId } from '@/lib/routing/categories';
 
-describe('Mixture-of-Models Routing & Request Scoring Protocol', () => {
+/*
+ * Mixture-of-Models đã bị gỡ 2026-10-16 (`lib/routing/categories.ts` chỉ còn
+ * hệ hạng mục + receipt; `resolveRoute` / `validateModelChains` /
+ * `categoryChainHasModel` / `DEFAULT_CHAINS` đã xoá). File này vì thế chỉ còn
+ * test cho `scoreRequest` — phần thật sự còn sống để nuôi badge hạng mục ở HUD.
+ */
+describe('Request Scoring Protocol (Mixture-of-Models đã bị gỡ)', () => {
   describe('scoreRequest - 20 Sample Requests and Edge Cases', () => {
     // 1-3. Architect category
     it('1. routes explicit architecture design to architect', () => {
@@ -145,120 +144,4 @@ describe('Mixture-of-Models Routing & Request Scoring Protocol', () => {
     });
   });
 
-  describe('resolveRoute & Fallback Chains', () => {
-    /* BYOK 100%: app không ship model nên DEFAULT_CHAINS rỗng ở cả 8 hạng mục.
-       Người dùng tự khai chuỗi ở Cài đặt; resolveRoute đọc CHÍ customChains. */
-    const CHAIN = (entries: Array<{ model: string; effort: 'low' | 'medium' | 'high' | 'max' }>) =>
-      ({ architect: entries }) as Partial<
-        Record<CategoryId, Array<{ model: string; effort: 'low' | 'medium' | 'high' | 'max' }>>
-      >;
-
-    it('DEFAULT_CHAINS rỗng ở cả 8 hạng mục (không model của máy chủ)', () => {
-      for (const cat of ALL_CATEGORIES) {
-        expect(DEFAULT_CHAINS[cat]).toEqual([]);
-      }
-    });
-
-    it('hạng mục chưa khai chuỗi → null (route báo lỗi, không đoán model)', () => {
-      expect(resolveRoute('architect')).toBeNull();
-      expect(categoryChainHasModel('architect')).toBe(false);
-      expect(categoryChainHasModel('quick', { quick: [{ model: 'm', effort: 'low' }] })).toBe(true);
-    });
-
-    it('resolves primary entry (position 0) by default', () => {
-      const custom = CHAIN([
-        { model: 'model-a', effort: 'high' },
-        { model: 'model-b', effort: 'medium' },
-      ]);
-      const receipt = resolveRoute('architect', { customChains: custom });
-      expect(receipt?.category).toBe('architect');
-      expect(receipt?.chainPosition).toBe(0);
-      expect(receipt?.selected.model).toBe('model-a');
-    });
-
-    it('resolves fallback entry when position > 0', () => {
-      const custom = CHAIN([
-        { model: 'model-a', effort: 'high' },
-        { model: 'model-b', effort: 'medium' },
-      ]);
-      const receipt = resolveRoute('architect', { customChains: custom, position: 1 });
-      expect(receipt?.chainPosition).toBe(1);
-      expect(receipt?.selected.model).toBe('model-b');
-    });
-
-    it('clamps position safely when out of range', () => {
-      const custom = CHAIN([
-        { model: 'model-a', effort: 'high' },
-        { model: 'model-b', effort: 'medium' },
-      ]);
-      const receipt = resolveRoute('architect', { customChains: custom, position: 999 });
-      expect(receipt?.chainPosition).toBe(1);
-      expect(receipt?.selected.model).toBe('model-b');
-    });
-
-    it('applies customChains override when provided', () => {
-      const custom: Partial<Record<CategoryId, Array<{ model: string; effort: 'low' | 'medium' | 'high' | 'max' }>>> = {
-        quick: [{ model: 'gpt-5-6-sol', effort: 'medium' }],
-      };
-      const receipt = resolveRoute('quick', { customChains: custom });
-      expect(receipt?.selected.model).toBe('gpt-5-6-sol');
-      expect(receipt?.selected.effort).toBe('medium');
-    });
-
-    it('enforces model contract effort floor during route resolution', () => {
-      // o1 has effortFloor: 'medium'
-      const custom: Partial<Record<CategoryId, Array<{ model: string; effort: 'low' | 'medium' | 'high' | 'max' }>>> = {
-        quick: [{ model: 'o1', effort: 'low' }],
-      };
-      const receipt = resolveRoute('quick', { customChains: custom });
-      expect(receipt?.selected.model).toBe('o1');
-      expect(receipt?.selected.effort).toBe('medium'); // raised from low to medium
-      expect(receipt?.effortChange).toEqual({
-        kind: 'floor_raised',
-        from: 'low',
-        to: 'medium',
-      });
-    });
-  });
-
-  describe('validateModelChains JSON Import Validation', () => {
-    it('accepts a valid JSON chains payload', () => {
-      const payload = {
-        architect: [{ model: 'claude-opus-5', effort: 'high' }],
-        quick: [{ model: 'gpt-4o-mini', effort: 'low' }],
-      };
-      const validated = validateModelChains(payload);
-      expect(validated.architect).toEqual([{ model: 'claude-opus-5', effort: 'high' }]);
-      expect(validated.quick).toEqual([{ model: 'gpt-4o-mini', effort: 'low' }]);
-      // Untouched categories keep defaults
-      expect(validated.ultrabrain).toEqual(DEFAULT_CHAINS.ultrabrain);
-    });
-
-    it('rejects array payloads', () => {
-      expect(() => validateModelChains([1, 2, 3])).toThrow('JSON Object');
-    });
-
-    it('rejects null or non-object payloads', () => {
-      expect(() => validateModelChains(null)).toThrow('JSON Object');
-      expect(() => validateModelChains('hello')).toThrow('JSON Object');
-    });
-
-    it('rejects payloads with no recognized categories', () => {
-      expect(() => validateModelChains({ unknown_cat: [] })).toThrow('Không tìm thấy cấu hình hạng mục hợp lệ');
-    });
-
-    it('rejects invalid effort levels', () => {
-      const badPayload = {
-        quick: [{ model: 'gpt-4o-mini', effort: 'super-ultra' }],
-      };
-      expect(() => validateModelChains(badPayload)).toThrow('không hợp lệ');
-    });
-
-    it('rejects entries missing model names', () => {
-      const badPayload = {
-        quick: [{ model: '', effort: 'low' }],
-      };
-      expect(() => validateModelChains(badPayload)).toThrow('thiếu tên model');
-    });
-  });
 });

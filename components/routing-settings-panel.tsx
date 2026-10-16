@@ -97,10 +97,10 @@ export function RoutingSettingsPanel() {
    * Lead/Worker thì đã nối đúng vào body qua `routingBodyFor`
    * (`use-chat-orchestration.ts:940-943`) nên GIỮ. Đó là phần có ích.
    *
-   * `lib/routing/categories.ts` GIỮ NGUYÊN: server import `resolveRoute` /
-   * `categoryChainHasModel` (`app/api/chat/route.ts:68`) và HUD import
-   * `CATEGORY_DESCRIPTIONS` (`components/hud/agent-hud.tsx:5`). Dọn nhánh chết
-   * phía server là việc riêng, đụng route.ts >1200 dòng.
+   * `lib/routing/categories.ts` vẫn GIỮ phần hệ hạng mục: `scoreRequest` gán
+   * hạng mục cho mỗi lượt và HUD đọc `CATEGORY_DESCRIPTIONS`
+   * (`components/hud/agent-hud.tsx:5`). Phần chuỗi dự phòng trong đó đã bị xoá
+   * cùng nhánh `customChains` ở `app/api/chat/route.ts`.
    */
   return (
     <div className="space-y-4 text-ui font-sans">

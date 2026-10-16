@@ -1,14 +1,18 @@
 /**
- * Mixture-of-models routing theo hạng mục công việc.
+ * Hạng mục công việc và receipt định tuyến.
  *
- * Mỗi hạng mục (Category) ánh xạ sang một chuỗi dự phòng (Chain) các entry { model, effort }.
- * Người dùng có thể cấu hình chuỗi này trong Settings -> Routing hoặc override qua file JSON.
- * HUD hiển thị: category:name(model:effort).
+ * File này TỪNG là engine Mixture-of-Models: mỗi hạng mục ánh xạ sang một chuỗi
+ * dự phòng `{ model, effort }` mà người dùng khai ở Cài đặt. Toàn bộ phần đó đã
+ * bị gỡ 2026-10-16 — `customChains` không bao giờ được client gửi lên server, và
+ * ngay cả khi gửi thì `model` luôn khác rỗng nên nhánh route theo chuỗi không
+ * bao giờ chạy. Xem `docs/superpowers/plans/2026-10-16-settings-dead-code-phase2.md`.
+ *
+ * CÒN LẠI và vẫn dùng: hệ hạng mục là hợp đồng dữ liệu cho badge ở
+ * `components/hud/agent-hud.tsx` (nhãn tiếng Việt + mô tả) và cho `scoreRequest`
+ * (`lib/routing/score-request.ts`) gán hạng mục cho mỗi lượt.
  */
 
-import { enforceContractEffort, resolveContract, EFFORT_LEVELS, type Effort } from '@/lib/model-contracts';
-
-export type { Effort };
+import type { Effort } from '@/lib/model-contracts';
 
 export type CategoryId =
   | 'ultrabrain'
@@ -28,50 +32,12 @@ export interface ChainEntry {
 export interface RouteReceipt {
   category: CategoryId;
   selected: ChainEntry;
-  chainPosition: number;
+  /** Vị trí trong chuỗi dự phòng — KHÔNG còn dùng sau khi gỡ Mixture-of-Models. */
+  chainPosition?: number;
   signals: string[];
   effortChange?: { kind: 'floor_raised' | 'unsupported_dropped'; from: Effort; to: Effort };
 }
 
-/**
- * Chuỗi dự phòng theo hạng mục — KHÔNG có giá trị mặc định.
- *
- * BYOK 100%: app không ship model nào, nên không có "chuỗi mặc định" hợp lệ
- * để điền vào. Người dùng tự khai chuỗi cho từng hạng mục ở Cài đặt → Định
- * tuyến (hoặc nạp từ file JSON). Hạng mục chưa khai báo → route trả lỗi
- * `MODEL_REQUIRED`, không âm thầm dùng model bất kỳ.
- */
-export const DEFAULT_CHAINS: Record<CategoryId, ChainEntry[]> = {
-  ultrabrain: [],
-  architect: [],
-  deep: [],
-  capable: [],
-  quick: [],
-  writing: [],
-  'visual-engineering': [],
-  'simple-work': [],
-};
-
-/**
- * Hạng mục có chuỗi model thật để dùng không: lấy chuỗi đã cấu hình của
- * người dùng, không thì rỗng. Dùng để quyết định có route theo hạng mục hay
- * không — chuỗi rỗng thì resolveRoute không có gì để chọn.
- */
-export function categoryChainHasModel(
-  category: CategoryId,
-  customChains?: Partial<Record<CategoryId, ChainEntry[]>>,
-): boolean {
-  const chain = customChains?.[category];
-  return Boolean(chain && chain.length > 0);
-}
-
-/**
- * Nhãn hiển thị mô tả cho từng hạng mục trong UI.
- *
- * CHỈ `label`/`description` là copy và được dịch. Key hạng mục là hợp đồng đã
- * lưu: `validateModelChains` và settings store tra theo đúng key này, nên
- * đổi key là âm thầm xoá cấu hình của người dùng.
- */
 export const CATEGORY_DESCRIPTIONS: Record<CategoryId, { label: string; description: string }> = {
   ultrabrain: {
     label: 'Ultrabrain',
@@ -117,89 +83,3 @@ export const ALL_CATEGORIES: readonly CategoryId[] = [
   'visual-engineering',
   'simple-work',
 ] as const;
-
-/**
- * Phân giải RouteReceipt cho một hạng mục cụ thể:
- * - Chọn entry ở thứ tự chainPosition (mặc định 0)
- * - Nếu entry đầu bị lỗi (404/not found), caller tăng chainPosition để fallback
- * - Áp dụng sàn effort từ ModelContract nếu có
- *
- * Chuỗi rỗng (hạng mục chưa khai) → null. Caller phải xử lý trước khi gọi,
- * đây không phải đường lỗi bình thường.
- */
-export function resolveRoute(
-  category: CategoryId,
-  options?: {
-    customChains?: Partial<Record<CategoryId, ChainEntry[]>>;
-    position?: number;
-    signals?: string[];
-  },
-): RouteReceipt | null {
-  const chains = options?.customChains?.[category];
-  if (!chains || chains.length === 0) return null;
-
-  const requestedPos = Math.max(0, Math.floor(options?.position ?? 0));
-  const safePos = Math.min(requestedPos, chains.length - 1);
-  const entry = chains[safePos]!;
-
-  const contract = resolveContract(entry.model);
-  const { effectiveEffort, changed } = enforceContractEffort(contract, entry.effort);
-
-  return {
-    category,
-    selected: {
-      model: entry.model,
-      effort: effectiveEffort,
-    },
-    chainPosition: safePos,
-    signals: options?.signals ?? [],
-    ...(changed ? { effortChange: changed } : {}),
-  };
-}
-
-/**
- * Xác thực và chuẩn hóa cấu hình chuỗi modelChains nhập từ JSON.
- * Ném lỗi rõ ràng nếu payload bị hỏng hoặc sai cấu trúc để bảo vệ settings store.
- */
-export function validateModelChains(input: unknown): Record<CategoryId, ChainEntry[]> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    throw new Error('Dữ liệu cấu hình phải là một JSON Object.');
-  }
-
-  const validCategories = new Set(ALL_CATEGORIES);
-  const validEfforts = new Set(EFFORT_LEVELS);
-  const result: Record<CategoryId, ChainEntry[]> = { ...DEFAULT_CHAINS };
-  let importedCount = 0;
-
-  for (const [key, val] of Object.entries(input as Record<string, unknown>)) {
-    if (!validCategories.has(key as CategoryId)) continue;
-    if (!Array.isArray(val) || val.length === 0) {
-      throw new Error(`Hạng mục "${key}" phải là mảng chứa ít nhất 1 chuỗi model:effort.`);
-    }
-
-    const validatedEntries: ChainEntry[] = [];
-    for (const item of val) {
-      if (typeof item !== 'object' || item === null) {
-        throw new Error(`Entry trong hạng mục "${key}" không đúng định dạng.`);
-      }
-      const model = String((item as any).model ?? '').trim();
-      const effort = String((item as any).effort ?? '').toLowerCase() as Effort;
-      if (!model) {
-        throw new Error(`Hạng mục "${key}" có entry thiếu tên model.`);
-      }
-      if (!validEfforts.has(effort)) {
-        throw new Error(`Mức effort "${effort}" trong "${key}" không hợp lệ (chỉ chấp nhận low/medium/high/max).`);
-      }
-      validatedEntries.push({ model, effort });
-    }
-
-    result[key as CategoryId] = validatedEntries;
-    importedCount++;
-  }
-
-  if (importedCount === 0) {
-    throw new Error('Không tìm thấy cấu hình hạng mục hợp lệ nào trong file JSON.');
-  }
-
-  return result;
-}

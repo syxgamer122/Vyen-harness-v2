@@ -443,9 +443,9 @@ describe('status line — từ trạng thái tiếng Việt', () => {
 
 describe('hạng mục định tuyến — key là hợp đồng, label là copy', () => {
   /**
-   * Key hạng mục được `validateModelChains` và settings store tra theo đúng
-   * tên này; đổi key là âm thầm xoá cấu hình đã lưu của người dùng.
-   * ĐỎ khi: đổi tên / bớt một key.
+   * Key hạng mục là hợp đồng: `scoreRequest` trả về đúng tên này và
+   * `CATEGORY_DESCRIPTIONS` tra theo nó; đổi key là âm thầm làm hỏng badge ở
+   * HUD. ĐỎ khi: đổi tên / bớt một key.
    *
    * Chỉ khoá TẬP KEY, không khoá thứ tự: `ALL_CATEGORIES` (thứ tự chip ở
    * Settings) và thứ tự key của record vốn dĩ đã lệch nhau từ trước, và thứ
@@ -480,7 +480,7 @@ describe('hạng mục định tuyến — key là hợp đồng, label là copy
   });
 
   /**
-   * ĐỎ khen: mô tả hạng mục hiện ra ở Settings -> Routing nên cũng là copy.
+   * ĐỎ khen: mô tả hạng mục hiện ra ở badge HUD nên cũng là copy.
    * ĐỎ khi trả về mô tả rỗng hoặc không dấu tiếng Việt (tức tiếng Anh).
    */
   it('mô tả hạng mục là tiếng Việt', () => {
