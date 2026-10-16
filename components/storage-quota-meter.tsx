@@ -68,12 +68,12 @@ export function StorageQuotaMeter() {
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <HardDrive size={14} className="text-info" />
-          <h4 className="text-xs font-semibold text-primary">Dung Lượng Bộ Nhớ &amp; Độ Bền Vững (Storage Quota)</h4>
+          <h4 className="text-ui font-semibold text-primary">Dung Lượng Bộ Nhớ &amp; Độ Bền Vững (Storage Quota)</h4>
         </div>
         <button
           type="button"
           onClick={checkStorage}
-          className="p-1 text-secondary hover:text-primary rounded hover:bg-surface"
+          className="rounded p-1 text-tertiary transition-colors hover:bg-surface hover:text-primary"
           aria-label="Kiểm tra lại dung lượng"
           title="Kiểm tra lại dung lượng"
         >
@@ -82,8 +82,8 @@ export function StorageQuotaMeter() {
       </div>
 
       <div className="space-y-2 mt-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-secondary flex items-center gap-1.5">
+        <div className="flex items-center justify-between text-meta">
+          <span className="text-tertiary flex items-center gap-1.5">
             <Database size={12} aria-hidden="true" /> Đã dùng: {formatBytes(usage)} / {formatBytes(quota)}
           </span>
           <span className="font-sans text-primary">{percentage}%</span>

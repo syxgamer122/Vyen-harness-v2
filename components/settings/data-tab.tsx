@@ -161,9 +161,13 @@ export function DataTab() {
         )}
       </div>
 
-      <div className="settings-card settings-card-body">
-        <StorageQuotaMeter />
-      </div>
+      {/*
+       * KHÔNG bọc `settings-card`: component tự render card riêng của nó
+       * (`storage-quota-meter.tsx:67`). Bọc thêm là card lồng card, phá nhịp
+       * thị giác của tab — mọi khối anh em đều là `settings-card` trần, và
+       * `UsageStats` ngay dưới (`:168-171`) cũng không có wrapper.
+       */
+      <StorageQuotaMeter />
 
       <div className="settings-card settings-card-body">
         <h4 className="field-label text-read">Thống kê tiêu thụ Token</h4>
