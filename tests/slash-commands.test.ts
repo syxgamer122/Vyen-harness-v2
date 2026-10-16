@@ -16,13 +16,20 @@ describe('Lệnh slash mở Cài đặt tới đúng tab (source-scan)', () => {
 
   it('lệnh tools mở tab safety — nơi có bảng phân quyền từng công cụ', () => {
     // Đột biến bị chặn: đổi 'safety' thành alias cũ 'chung' → resolveSettingsTab
-    // map 'chung' sang 'appearance' (`settings-tabs.ts:98-99`), tab không có cài
-    // đặt công cụ nào, toast thì vẫn nói "đã mở cài đặt công cụ".
-    expect(src).toMatch(/slash\.kind === 'tools'[\s\S]{0,400}openSettings\('safety'\)/);
-  });
+    // map 'chung' sang 'appearance', tab không có cài đặt công cụ nào, toast
+    // thì vẫn nói "đã mở cài đặt công cụ".
+    //
+    // Cố tình KHÔNG dùng regex khoảng-cách `[\s\S]{0,N}`: repo này comment rất
+    // dày, nên chỉ cần chèn thêm vài dòng giải thích là vỡ — đã xảy ra đúng một
+    // lần (thiếu `});` cũngngầm do lỗi đọc cấu trúc). Lát cắt độc lập với độ
+    // dài comment; `expect(i).toBeGreaterThan(-1)` để marker hỏng thì đỏ ngay
+    // thay vì âm thầm pass. Cùng pattern với `tests/evidence-badge.test.ts:65`.
+    const i = src.indexOf("slash.kind === 'tools'");
+    expect(i, 'không tìm thấy nhánh xử lý /tools').toBeGreaterThan(-1);
 
-  it('không còn truyền alias cũ cho lệnh tools', () => {
-    expect(src).not.toMatch(/slash\.kind === 'tools'[\s\S]{0,400}openSettings\('chung'\)/);
+    const slice = src.slice(i, i + 900);
+    expect(slice).toMatch(/openSettings\('safety'\)/);
+    expect(slice).not.toMatch(/openSettings\('chung'\)/);
   });
 });
 

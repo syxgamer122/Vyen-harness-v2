@@ -7,7 +7,6 @@ import {
   normalizeModelRoutingConfig,
   type ModelRoutingConfig,
 } from '@/lib/model-routing';
-import { Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 
 /**
  * Ô số của `LeadWorkerRoutingSection`.

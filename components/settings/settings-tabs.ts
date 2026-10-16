@@ -72,7 +72,7 @@ export const SETTINGS_SEARCH_ITEMS: SearchItem[] = [
   { id: 'throttle', title: 'Tần suất vẽ lại khi stream', description: 'Điều chỉnh độ mượt và tần suất render token', tab: 'appearance', keywords: 'throttle streaming fps ve lai mượt' },
   { id: 'prov-byok', title: 'Nhà cung cấp API (BYOK)', description: 'Thêm endpoint tương thích OpenAI, OpenRouter...', tab: 'providers', keywords: 'nha cung cap provider openrouter openai anthropic custom url api key sk' },
   { id: 'prov-vision', title: 'Model đọc ảnh (Vision)', description: 'Model mô tả ảnh cho workspace và MCP', tab: 'providers', keywords: 'vision anh image camera mo ta' },
-  { id: 'prov-routing', title: 'Routing model (Lead/Worker)', description: 'Model mạnh chạy lượt đầu rồi chuyển model rẻ thực thi, tự quay lại khi lỗi', tab: 'providers', keywords: 'routing lead worker fallback effort lan luoi' },
+  { id: 'prov-routing', title: 'Routing model (Lead/Worker)', description: 'Model mạnh chạy lượt đầu rồi chuyển model rẻ thực thi, tự quay lại khi lỗi', tab: 'providers', keywords: 'routing lead worker fallback effort lan luoi mixture' },
   { id: 'safety-policy', title: 'Chế độ phê duyệt (Approval Policy)', description: 'Smart, Autonomous, Manual, hoặc Chat Only', tab: 'safety', keywords: 'phe duyet auto pilot smart autonomous yolo manual chat only' },
   { id: 'safety-staging', title: 'Staging Sandbox', description: 'Ghi vào bộ đệm, review batch trước khi chạm đĩa', tab: 'safety', keywords: 'staging sandbox bo dem review batch' },
   { id: 'safety-perms', title: 'Bảng phân quyền từng công cụ (Tool Permissions)', description: 'Cấu hình auto, ask, deny cho 36 công cụ tích hợp và tool MCP phát hiện lúc chạy', tab: 'safety', keywords: 'phan quyen tool permissions block allow deny bang nhom' },
@@ -113,4 +113,3 @@ export function resolveSettingsTab(tab?: string): SettingsTab {
    */
   return SETTINGS_TABS.some((t) => t.id === tab) ? (tab as SettingsTab) : 'appearance';
 }
-

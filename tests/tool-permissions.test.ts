@@ -24,7 +24,6 @@ import {
   saveToolPermissionToDb,
   loadToolPermissionsFromDb,
   resetToolPermissionsInDb,
-  syncToolPermissionsToDb,
 } from '@/lib/tool-permissions';
 import { db } from '@/lib/db';
 import type { ToolPermissions } from '@/lib/store';
@@ -306,11 +305,13 @@ describe('P1-6: Tool permissions & 4 modes', () => {
       expect(loaded.fs_read).toBe('auto');
     });
 
-    it('syncs multiple permissions to Dexie and clears on reset', async () => {
-      await syncToolPermissionsToDb({
-        shell_run: 'deny',
-        git_commit: 'ask',
-      });
+    it('ghi nhiều quyền rồi xoá sạch', async () => {
+      // `syncToolPermissionsToDb` (ghi hàng loạt) đã bị gỡ 2026-10-16 vì không
+      // có caller production nào — mọi thay đổi quyền đều đi qua
+      // `saveToolPermissionToDb` từng dòng. Nên test này dùng đúng đường ghi
+      // thật đó, và phần "xoá sạch" vẫn giữ nguyên để canh `resetToolPermissionsInDb`.
+      await saveToolPermissionToDb('shell_run', 'deny');
+      await saveToolPermissionToDb('git_commit', 'ask');
 
       const loaded = await loadToolPermissionsFromDb();
       expect(loaded.shell_run).toBe('deny');
@@ -371,6 +372,7 @@ describe('P1-6: Tool permissions & 4 modes', () => {
       );
       expect(src).toMatch(/CATEGORY_KEYS/);
       expect(src).toMatch(/CollidesWithGroupNote/);
+    });
 
     it('KHÔNG còn tầng khoá glob trong engine — không có UI nào tạo được nó', () => {
       // Đột biến bị chặn: ai thêm lại bước "tool:glob" / "*.env*" mà không kèm
@@ -385,7 +387,6 @@ describe('P1-6: Tool permissions & 4 modes', () => {
       expect(src).not.toMatch(/matchesGlobPattern/);
       expect(src).not.toMatch(/extractTargetPath/);
       expect(src).not.toMatch(/key\.indexOf\(':'\)/);
-    });
     });
   });
 

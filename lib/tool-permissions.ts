@@ -151,7 +151,6 @@ export function isDynamicMcpTool(toolName: string): boolean {
   return typeof toolName === 'string' && /^mcp__[a-zA-Z0-9_.-]+__[a-zA-Z0-9_.-]+$/.test(toolName);
 }
 
-
 /**
  * Lấy quyền hiệu lực cho một tool cụ thể (P3.6 Policy-as-Data).
  *
@@ -190,11 +189,11 @@ export function getEffectiveToolPermission(
   permissions: ToolPermissions,
   argsOrPath?: Record<string, unknown> | string,
 ): PermissionOverride {
-  // 3. Tool override cụ thể (permissions[toolName])
+  // 1. Tool override cụ thể (permissions[toolName])
   const specific = permissions[toolName];
   if (specific && specific !== 'default') return specific;
 
-  // 5. Dynamic MCP server-level pattern (vd: mcp__github__*)
+  // 2. Dynamic MCP server-level pattern (vd: mcp__github__*)
   if (isDynamicMcpTool(toolName)) {
     const serverMatch = toolName.match(/^mcp__([a-zA-Z0-9_.-]+)__/);
     if (serverMatch) {
@@ -205,7 +204,7 @@ export function getEffectiveToolPermission(
     }
   }
 
-  // 6. Category override
+  // 3. Category override
   const category = TOOL_CATEGORY_MAP[toolName];
   if (category && permissions[category] && permissions[category] !== 'default') {
     return permissions[category]!;
@@ -223,7 +222,7 @@ export function getEffectiveToolPermission(
     return permissions['shell']!;
   }
 
-  // 7. Enforce deny-by-default cho unapproved dynamic MCP tools (mcp__<server>__<tool>)
+  // 4. Enforce deny-by-default cho unapproved dynamic MCP tools (mcp__<server>__<tool>)
   if (isDynamicMcpTool(toolName)) {
     return 'deny';
   }
@@ -265,29 +264,6 @@ export async function loadToolPermissionsFromDb(): Promise<Record<string, Permis
   } catch (err) {
     console.warn('[tool-permissions] Đọc Dexie thất bại:', err);
     return {};
-  }
-}
-
-/**
- * Đồng bộ toàn bộ permissions từ store vào Dexie.
- */
-export async function syncToolPermissionsToDb(
-  permissions: ToolPermissions,
-): Promise<void> {
-  try {
-    const now = Date.now();
-    const records: StoredToolPermissionRecord[] = Object.entries(permissions).map(
-      ([toolName, permission]) => ({
-        toolName,
-        permission,
-        updatedAt: now,
-      }),
-    );
-    if (records.length > 0) {
-      await db.toolPermissions.bulkPut(records);
-    }
-  } catch (err) {
-    console.warn('[tool-permissions] Đồng bộ sang Dexie thất bại:', err);
   }
 }
 

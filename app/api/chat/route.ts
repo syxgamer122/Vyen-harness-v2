@@ -115,7 +115,6 @@ const MAX_BODY_BYTES = 4.5 * 1024 * 1024;
 /** Trần KÍCH THƯỚC payload tool-result cho một lượt — không phải trần lượt agent. */
 const MAX_TOOL_INVOCATIONS_PER_REQUEST = 64;
 
-
 /* Port từ prime-agent (`isRetryableError`): lỗi TẠM THỜI của gateway thì thử
    lại ĐÚNG model đó một lần (kèm backoff ngắn) trước khi đốt model/key kế
    tiếp trong chuỗi failover — overload/rate-limit thường nhả sau vài trăm ms. */
@@ -1040,8 +1039,6 @@ export async function POST(req: Request) {
         ? rawCustomKey
         : undefined;
 
-
-
     /* --- Body --- */
     const contentLength = Number(req.headers.get('content-length') || '0');
     if (contentLength > MAX_BODY_BYTES) {
@@ -1192,10 +1189,10 @@ export async function POST(req: Request) {
      * (trừ `claude-opus-5` có `effortFloor: 'high'` trong contract). HUD cũng
      * in effort của receipt chứ không phải effort thật.
      *
-     * Effort thật gửi provider đi đường RIÊNG — `thinkingLevel` → `:2399` →
-     * `providerOptions.openai.reasoningEffort` — nên người dùng không mất gì;
-     * đây chỉ là receipt nói dối. `ThinkingLevel` và `Effort` cùng tập 4 giá
-     * trị `low|medium|high|max` nên lấy thẳng được.
+     * Effort thật gửi provider đi đường RIÊNG — `thinkingLevel` → khối
+     * `reasoningEffort` ở dưới → `providerOptions.openai.reasoningEffort` — nên
+     * người dùng không mất gì; đây chỉ là receipt nói dối. `ThinkingLevel` và
+     * `Effort` cùng tập 4 giá trị `low|medium|high|max` nên lấy thẳng được.
      */
     const enforced = enforceContractEffort(contract, thinkingLevel ?? 'medium');
     const routeReceipt: RouteReceipt = {
@@ -1207,7 +1204,6 @@ export async function POST(req: Request) {
       signals: scoredRequest.signals,
       ...(enforced.changed ? { effortChange: enforced.changed } : {}),
     };
-
 
     /* Provenance cho agentic tools: URL được phép web_fetch = URL người dùng
        tự gắn trong tin nhắn + URL nằm trong webContext (kết quả search phía

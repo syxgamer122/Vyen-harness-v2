@@ -51,10 +51,14 @@ import {
  *   fs_write  (tool-catalog.ts:245)  → nhóm "Sửa & ghi file" gồm 3 tool
  *   delegate  (tool-catalog.ts:489)  → nhóm chỉ có đúng 1 tool nên vô hại
  *
- * Hệ quả trong `getEffectiveToolPermission` (`lib/tool-permissions.ts:229`):
- * bước 3 (`:265`) đọc `permissions[toolName]` TRƯỚC bước 6 (`:280-283`) đọc
- * `permissions[category]` — với tên trùng, hai bước đọc CÙNG một ô, và bước 3
- * luôn thắng nên bước 6 chết.
+ * Hệ quả trong `getEffectiveToolPermission` (`lib/tool-permissions.ts`):
+ * bước 1 đọc `permissions[toolName]` TRƯỚC bước 3 đọc `permissions[category]`
+ * — với tên trùng, hai bước đọc CÙNG một ô, và bước 1 luôn thắng nên bước 3
+ * không bao giờ tới với các tool mang tên trùng.
+ *
+ * (Số dòng cố tình không ghi ở đây: xoá tầng glob đã dịch mọi dòng trong
+ * `lib/tool-permissions.ts`, và đánh số dòng trong comment là thứ hỏng ngay
+ * ở lần sửa kế tiếp. Bám vào TÊN HÀM và TÊN KHOÁ.)
  *
  * Nên đặt `fs_read = auto` ở dòng này kéo theo CẢ 7 tool đọc file thành Tự
  * duyệt, trong khi 6 dòng kia vẫn in "Mặc định". Đây là lỗi fail-open: người
@@ -75,7 +79,7 @@ const CATEGORY_KEYS: ReadonlySet<string> = new Set<string>(ALL_TOOL_CATEGORIES);
 function CollidesWithGroupNote({ toolName }: { toolName: string }) {
   const label = TOOL_CATEGORY_LABELS[toolName as ToolCategory]?.label ?? toolName;
   return (
-    <p className="mt-0.5 text-micro leading-snug text-warning">
+    <p className="field-hint mt-0.5 text-warning">
       Ô này đặt quyền cho <strong>toàn bộ nhóm “{label}”</strong>, không riêng công cụ này.
       Muốn chỉ đổi một công cụ thì dùng dòng riêng của công cụ đó.
     </p>

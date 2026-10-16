@@ -303,7 +303,7 @@ export function shouldAutoApprove(ctx: AutoApproveContext): boolean {
   }
 
   // ── 0c. Runner commands: thực thi code agent đã viết → HỎI Ở MỌI CHẾ ĐỘ ──
-  // Đặt TRƯỚC user rules / per-tool override / YOLO: runner là đường RCE
+  // Đặt TRƯỚC per-tool override / YOLO: runner là đường RCE
   // ("fs_write đã hỏi" + "npm test tự chạy"), nên override `auto` và policy
   // `never` (YOLO) đều KHÔNG được tự duyệt. Người dùng vẫn duyệt được.
   if (ctx.toolName === 'shell_run' && isRunnerCommand(String(ctx.args.command ?? ''))) {

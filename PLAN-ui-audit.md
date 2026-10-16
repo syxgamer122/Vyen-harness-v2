@@ -527,9 +527,14 @@ Ba mục agent báo là chết nhưng tôi kiểm thấy sai:
    `StoredMessageStatus = 'complete' | 'streaming' | 'aborted' | 'error'`, và
    `message-item.tsx:476` đọc status từ **DB** — tin bị lưu dở lúc app đóng giữa
    lượt mang đúng `'streaming'`.
-3. **6 nhánh `case` alias trong `resolveSettingsTab`** — `settingsInitialTab` đến
-   từ store persist (`lib/store.ts:222`), tức dữ liệu người dùng đã lưu từ phiên
-   cũ vẫn có thể mang id cũ. Đây là chuẩn hoá input, không phải nhánh thừa.
+3. ~~**6 nhánh `case` alias trong `resolveSettingsTab`**~~ — **ĐÃ SỬA 2026-10-16,
+   và lập luận cũ ở đây SAI.** `settingsInitialTab` **không** nằm trong
+   `partialize` (`lib/store.ts`) và bị xoá khi đóng Cài đặt, nên nó thuần
+   in-memory, **không sống qua reload** — không có dữ liệu phiên cũ nào mang
+   id cũ tới `resolveSettingsTab`. Hàm đã rút còn một kiểm tra
+   `SETTINGS_TABS.some(...)` (`components/settings/settings-tabs.ts`), và 3
+   call site đã chuyển sang id hiện hành (`skills`→`extensions`,
+   `stats`→`data`, `chung`→`safety`).
 
 Ngoài ra giữ có chủ đích: `fx-bar-bounce` / `fx-dot-bounce` / `fx-sweep` trong
 `tailwind.config.ts` — `components/effects/index.tsx` ghi rõ *"đừng xoá vội khi

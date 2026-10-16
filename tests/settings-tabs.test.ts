@@ -47,14 +47,30 @@ describe('SETTINGS_SEARCH_ITEMS — mọi mục trỏ tới tab có thật', () 
 });
 
 describe('SETTINGS_SEARCH_ITEMS — không mô tả tính năng không tồn tại', () => {
-  const texts = SETTINGS_SEARCH_ITEMS.map((i) => `${i.title} ${i.description}`);
+  const texts = SETTINGS_SEARCH_ITEMS.map((i) => i.description);
 
   it('không hứa ô API key OpenAI riêng — preset đã bị gỡ có chủ đích', () => {
     // `lib/providers.ts:104-121` để lại `/* Seed — ĐÃ XOÁ */`: không còn provider
     // seed nào. `api.openai.com` chỉ còn là placeholder trong ô Base URL.
-    // Đột biến bị chặn: thêm lại mục kiểu "API Key OpenAI chính gốc".
-    for (const t of texts) {
-      expect(t.toLowerCase(), `mô tả nhắc OpenAI: "${t}"`).not.toMatch(/openai/);
+    //
+    // CANH NGUYÊN VẤN ĐỀ ĐÚNG, KHÔNG PHẢI TỪ "openai": mục cũ `prov-openai` mô
+    // tả ô nhập API key riêng cho OpenAI. Mô tả của `prov-byok` hợp lệ lại có
+    // chữ "OpenAI" ("endpoint tương thích OpenAI, OpenRouter") — nên cấm mọi
+    // chữ "openai" sẽ đỏ chính vì mục đúng. Vì thế:
+    //   (a) không mục nào có CHỦ ĐỀ nhắc OpenAI, và
+    //   (b) không mô tả nào hứa một ô riêng cho provider đó.
+    const titles = SETTINGS_SEARCH_ITEMS.map((i) => i.title.toLowerCase());
+    expect(
+      titles.some((t) => t.includes('openai')),
+      'có mục tìm kiếm nào hứa ô OpenAI riêng',
+    ).toBe(false);
+
+    const descriptions = SETTINGS_SEARCH_ITEMS.map((i) => i.description.toLowerCase());
+    for (const d of descriptions) {
+      expect(
+        d,
+        `mô tả hứa ô nhập key riêng: "${d}"`,
+      ).not.toMatch(/api key openai|khóa openai chính gốc|openai qua api\.openai\.com/);
     }
   });
 
