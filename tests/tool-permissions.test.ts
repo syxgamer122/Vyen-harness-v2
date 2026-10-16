@@ -13,6 +13,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { isToolDenied, TOOL_CATEGORY_MAP, ALL_TOOL_CATEGORIES } from '@/lib/tool-catalog';
 import { shouldAutoApprove, isSafeCommand, isAlwaysBlocked, type ApprovalPolicy } from '@/lib/auto-pilot';
 import {
@@ -339,6 +341,58 @@ describe('P1-6: Tool permissions & 4 modes', () => {
       await resetToolPermissionsInDb();
       const empty = await loadToolPermissionsFromDb();
       expect(Object.keys(empty)).toHaveLength(0);
+    });
+  });
+
+  describe('Khoá trùng tên category/tool — hành vi thật và nhãn UI', () => {
+    /*
+     * `toolPermissions` là Record phẳng cho CẢ quyền-nhóm lẫn quyền-tool. Ba
+     * chuỗi vừa là tên category vừa là tên tool thật, như `fs_read`
+     * (`tool-catalog.ts:199`). Hệ quả: đặt ô `fs_read` kéo theo cả nhóm.
+     *
+     * Các test dưới đây KHÔNG đòi sửa hành vi — đòi UI nói ra hành vi đó, vì
+     * fail-open mà không ai biết thì nguy hiểm hơn chặn nhầm.
+     */
+    const COLLIDING = ['fs_read', 'fs_write', 'delegate'] as const;
+
+    it('đúng ba dòng trùng tên, và chúng là thật', () => {
+      // Khoá bảng danh sách: thêm/đổi một tên trùng trong TOOL_CATALOG mà quên
+      // sửa danh sách này → test đỏ, buộc phải xem lại ô đó có cần nhãn.
+      const cats = new Set<string>(ALL_TOOL_CATEGORIES);
+      const colliding = getAllToolRows([])
+        .map((r) => r.name)
+        .filter((n) => cats.has(n))
+        .sort();
+      expect(colliding).toEqual([...COLLIDING].sort());
+    });
+
+    it('đặt fs_read = auto kéo theo TOÀN BỘ nhóm đọc file (fail-open)', () => {
+      // Đây là hành vi đang tồn tại và được giữ nguyên có chủ đích. Ghi lại ở đây
+      // để lần sửa tương lai phải ĐỌC kỹ trước khi đổi, và để bảng UI có lý do
+      // phải ghi nhãn trùng tên.
+      const perms = { fs_read: 'auto' } as ToolPermissions;
+      for (const t of ['fs_read', 'fs_list', 'fs_search', 'skill_load', 'code_skeleton']) {
+        expect(getEffectiveToolPermission(t, perms), `${t} phải theo nhóm`).toBe('auto');
+      }
+    });
+
+    it('vẫn tinh chỉnh được từng tool qua ô riêng của nó', () => {
+      // Chứng minh việc sửa nhãn KHÔNG mất khả năng cấu hình: ô `fs_list` có slot
+      // riêng nên vẫn nằm ở bước 3 và thắng quyền nhóm ở bước 6.
+      const perms = { fs_read: 'auto', fs_list: 'deny' } as ToolPermissions;
+      expect(getEffectiveToolPermission('fs_list', perms)).toBe('deny');
+      expect(getEffectiveToolPermission('fs_search', perms)).toBe('auto');
+    });
+
+    it('bảng UI có ghi nhãn cho dòng trùng tên', () => {
+      // Đột biến bị chặn: xoá `CollidesWithGroupNote` → UI lại hiện ô như per-tool
+      // và người dùng tin rằng chỉ mình công cụ đó được mở.
+      const src = fs.readFileSync(
+        path.resolve(__dirname, '../components/tool-permissions-table.tsx'),
+        'utf8',
+      );
+      expect(src).toMatch(/CATEGORY_KEYS/);
+      expect(src).toMatch(/CollidesWithGroupNote/);
     });
   });
 

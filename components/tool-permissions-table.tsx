@@ -27,6 +27,11 @@ import { useAppStore, PERMISSION_OPTIONS, type PermissionOverride } from '@/lib/
 import { isMcpAvailable, listMcpTools } from '@/lib/mcp/bridge';
 import { mcpToolKey, type McpToolInfo } from '@/lib/mcp/tool-mapper';
 import {
+  ALL_TOOL_CATEGORIES,
+  TOOL_CATEGORY_LABELS,
+  type ToolCategory,
+} from '@/lib/tool-catalog';
+import {
   getAllToolRows,
   TOOL_PERMISSION_GROUPS,
   type ToolPermissionGroup,
@@ -34,6 +39,48 @@ import {
   saveToolPermissionToDb,
   resetToolPermissionsInDb,
 } from '@/lib/tool-permissions';
+
+/*
+ * Tên tool TRÙNG TÊN một khoá category.
+ *
+ * `toolPermissions` là một `Record` PHẲNG dùng cho hai việc: quyền theo nhóm
+ * (8 khoá `ALL_TOOL_CATEGORIES`) và quyền theo tên tool trần. Ba chuỗi vừa là
+ * tên category vừa là tên tool thật trong `TOOL_CATALOG`:
+ *
+ *   fs_read   (tool-catalog.ts:199)  → nhóm "Đọc file"  gồm 7 tool
+ *   fs_write  (tool-catalog.ts:245)  → nhóm "Sửa & ghi file" gồm 3 tool
+ *   delegate  (tool-catalog.ts:489)  → nhóm chỉ có đúng 1 tool nên vô hại
+ *
+ * Hệ quả trong `getEffectiveToolPermission` (`lib/tool-permissions.ts:229`):
+ * bước 3 (`:265`) đọc `permissions[toolName]` TRƯỚC bước 6 (`:280-283`) đọc
+ * `permissions[category]` — với tên trùng, hai bước đọc CÙNG một ô, và bước 3
+ * luôn thắng nên bước 6 chết.
+ *
+ * Nên đặt `fs_read = auto` ở dòng này kéo theo CẢ 7 tool đọc file thành Tự
+ * duyệt, trong khi 6 dòng kia vẫn in "Mặc định". Đây là lỗi fail-open: người
+ * dùng tưởng chỉ mở một tool.
+ *
+ * Cách sửa ở đây là sửa NÓI DỐI, không phải đổi định dạng dữ liệu: đánh dấu
+ * rõ dòng đó điều khiển cả nhóm. Mọi nhu cầu thực tế vẫn làm được — đặt ô
+ * nhóm ở đây rồi tinh chỉnh từng tool qua dòng riêng của tool đó (`fs_list`,
+ * `fs_search`, `skill_load`… có ô riêng, bước 3 đọc đúng ô riêng).
+ *
+ * Thứ MẤT đi là "chặn cả nhóm nhưng riêng tool `fs_read` thì auto" — một ý định
+ * vô nghĩa, đánh đổi này chấp nhận được so với việc đổi namespace khoá (đụng
+ * 6 file test tripwire và phải vá parser glob tách tại dấu `:` đầu tiên).
+ */
+const CATEGORY_KEYS: ReadonlySet<string> = new Set<string>(ALL_TOOL_CATEGORIES);
+
+/** Nhãn hiện dưới ô quyền của dòng trùng tên, để ô không đọc như per-tool. */
+function CollidesWithGroupNote({ toolName }: { toolName: string }) {
+  const label = TOOL_CATEGORY_LABELS[toolName as ToolCategory]?.label ?? toolName;
+  return (
+    <p className="mt-0.5 text-micro leading-snug text-warning">
+      Ô này đặt quyền cho <strong>toàn bộ nhóm “{label}”</strong>, không riêng công cụ này.
+      Muốn chỉ đổi một công cụ thì dùng dòng riêng của công cụ đó.
+    </p>
+  );
+}
 
 /*
  * Nhóm quyền → TÊN icon (không phải component). Tên icon tra tiếp qua
@@ -268,6 +315,7 @@ export function ToolPermissionsTable() {
                       )}
                     </div>
                     <div className="text-micro text-tertiary">{row.shortLabel}</div>
+                    {CATEGORY_KEYS.has(row.name) && <CollidesWithGroupNote toolName={row.name} />}
                   </td>
                   <td className="px-3 py-2">
                     <span className="inline-flex items-center gap-1 text-meta text-tertiary">
@@ -282,7 +330,11 @@ export function ToolPermissionsTable() {
                     <div className="inline-flex items-center gap-2">
                       {getPermissionBadge(currentVal)}
                       <label htmlFor={selectId} className="sr-only">
-                        Quyền cho tool {row.name}
+                        {CATEGORY_KEYS.has(row.name)
+                          ? `Quyền cho nhóm ${
+                              TOOL_CATEGORY_LABELS[row.name as ToolCategory]?.label ?? row.group
+                            } (cũng là công cụ ${row.name})`
+                          : `Quyền cho tool ${row.name}`}
                       </label>
                       <select
                         id={selectId}
