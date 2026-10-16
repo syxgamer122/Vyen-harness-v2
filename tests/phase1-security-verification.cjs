@@ -17,9 +17,10 @@
  *    - C-03: Approval token verification at privileged shell:run IPC bridge
  *    - Rejection on missing token (approval_required) and reuse (approval_replayed)
  *    - V1: Enforce expectedBaseHash for disk mutations with diffs (TOCTOU)
- * 5. lib/cli/interactive-agent.ts:
- *    - Elimination of raw spawnSync bypass in bash()
- *    - Routing through compileShellCommand and safe policy enforcement
+ * 5. shell policy (lib/shell-policy.cjs):
+ *    - Dynamic harness: compileShellCommand chặn metacharacter trước khi spawn
+ *    (2026-10-15: phần audit tĩnh trên `lib/cli/interactive-agent.ts` đã bị gỡ
+ *     cùng CLI headless; file shell-policy vẫn sống vì desktop bridge dùng.)
  */
 
 const assert = require('node:assert');
@@ -487,33 +488,14 @@ async function callIpc(channel, payload) {
   console.log('✔ V1: expectedBaseHash enforced on diff mutations; TOCTOU protection verified.');
 
   // =============================================================================
-  // TEST 5: lib/cli/interactive-agent.ts Shell Policy Harness (Point 5)
+  // TEST 5: shell policy harness (Point 5)
+  // 2026-10-15: phần 5.1 (audit tĩnh source `lib/cli/interactive-agent.ts`) bị gỡ
+  // cùng CLI headless. Phần 5.2 dưới đây kiểm chính `lib/shell-policy.cjs` —
+  // file này vẫn sống vì desktop bridge dùng — nên giữ nguyên.
   // =============================================================================
-  console.log('\n--- 5. lib/cli/interactive-agent.ts Shell Policy Enforcement ---');
+  console.log('\n--- 5. shell policy enforcement ---');
 
-  // 5.1 Static Code Contract Verification
-  const interactiveAgentPath = path.join(__dirname, '../lib/cli/interactive-agent.ts');
-  const agentSrc = fs.readFileSync(interactiveAgentPath, 'utf8');
-
-  assert.ok(
-    agentSrc.includes("import { compileShellCommand, getSafeEnv, resolveBinaryAbsolute } from '../shell-policy.cjs';"),
-    'interactive-agent.ts must import policy enforcement primitives from shell-policy.cjs'
-  );
-  assert.ok(
-    agentSrc.includes('compiled = compileShellCommand(command);'),
-    'bash() must parse and compile shell commands via compileShellCommand()'
-  );
-  assert.ok(
-    agentSrc.includes('shell: false'),
-    'spawnSync inside bash() must explicitly set shell: false'
-  );
-  assert.ok(
-    !agentSrc.includes('spawnSync(shell, args'),
-    'Raw spawnSync(shell, args) must be completely eliminated'
-  );
-  console.log('✔ Static audit: raw spawnSync(shell, args) eliminated; safe policy pipeline wired into interactive-agent.ts.');
-
-  // 5.2 Dynamic Policy Harness Execution
+  // 5.1 Dynamic Policy Harness Execution
   function runHarnessBash(command, wsDir = testWsDir) {
     let compiled;
     try {

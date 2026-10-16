@@ -18,8 +18,9 @@
  *
  * BẤT BIẾN
  *  - Placeholder giữ nguyên '[redacted]' như bản cũ → log/lỗi không đổi định dạng.
- *  - Chỉ import DEFAULT_DENY_PATTERNS — không dựng danh sách env-deny
- *    thứ hai để khỏi drift; module thuần nên chạy được cả client bundle lẫn Node.
+ *  - Danh sách env-deny chuẩn nằm NGAY TRONG FILE NÀY (dưới đây), không import
+ *    từ module khác và không dựng thêm danh sách thứ hai để khỏi drift; module
+ *    thuần nên chạy được cả client bundle lẫn Node.
  *  - Không bao giờ ném và không bao giờ trả undefined: input lạ giữ nguyên trạng.
  *  - Pattern phải ĐỦ HẸP để dùng được cho kết quả tool (đọc file code): rule
  *    assignment đòi >=16 ký tự trong nháy hoặc >=20 ký tự không nháy, nếu không
@@ -27,7 +28,20 @@
  *    dung model đọc được.
  */
 
-import { DEFAULT_DENY_PATTERNS } from '@/lib/teamwork/sandbox/env-scrubber';
+/**
+ * Danh sách deny chuẩn của biến môi trường (vốn ở `lib/teamwork/sandbox/env-scrubber.ts`).
+ * 2026-10-15: module env-scrubber đi cùng teamwork headless bị gỡ; hằng số được
+ * chuyển vào đây vì đây là chỗ duy nhất còn dùng nó. Danh sách giữ nguyên từng
+ * pattern — đổi regex là đổi hành vi che bí mật.
+ */
+const DEFAULT_DENY_PATTERNS: readonly RegExp[] = Object.freeze([
+  /^((OPENAI|ANTHROPIC|GEMINI|COHERE|MISTRAL|GROQ|PERPLEXITY|DEEPSEEK|BEDROCK)_API_KEY)$/i,
+  /^((GITHUB|GITLAB|BITBUCKET)_(TOKEN|PAT|SECRET))$/i,
+  /^((AWS|AZURE|GCP|GOOGLE)_(SECRET|KEY|ACCESS_KEY|ACCESS_KEY_ID|SECRET_ACCESS_KEY|CREDENTIALS))$/i,
+  /^(DATABASE_URL|DB_PASS|POSTGRES_PASSWORD|MYSQL_PWD|REDIS_AUTH|MONGODB_URI)$/i,
+  /^(STRIPE|SLACK|DISCORD)_(TOKEN|KEY|SECRET|WEBHOOK)$/i,
+  /.*(SECRET|PASSWORD|PASSWD|AUTH_TOKEN|PRIVATE_KEY|PRIVATE_CERT|ACCESS_TOKEN|BEARER_TOKEN).*/i,
+]);
 
 /** Chuỗi thay thế — giữ nguyên bản cũ để không đổi định dạng log/lỗi. */
 export const REDACT_PLACEHOLDER = '[redacted]';

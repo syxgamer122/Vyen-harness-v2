@@ -719,3 +719,284 @@ lập: grep 0 tham chiếu còn lại cho mọi file bị xóa; chạy lại `do
 `0e5760e`** (DESIGN.md thêm chú thích "28 ảnh PNG đã gỡ khỏi git"; PLAN-ui-audit đóng hai
 câu hỏi cũ; `docs:check` sau sửa vẫn OK 609 file); **(3)+(4) để nguyên** (hygiene lịch sử và
 thẩm mỹ, không đáng viết lại/đụng). Push sẽ là fast-forward.
+
+---
+
+## 14. Đợt "xoá phần không còn ai gọi" — 2026-10-15
+
+Audit reverse-dependency (3 subagent, mọi claim chính đã tự grep lại) trả về 3 nhóm. Đợt này chỉ cắt **nhóm A: không còn đường gọi nào** — mỗi dòng xoá đều có producer = 0 hoặc guard chặn trước khi tới. **Nhóm B/C (ZeroMem, `lib/teamwork`, hai bộ tool sửa file, tracer) KHÔNG xoá**: đó là quyết định sản phẩm, không phải rác.
+
+| # | Xoá | Bằng chứng "không ai gọi" | Chứng minh sau khi sửa |
+|---|---|---|---|
+| A1 | `components/chat/orchestrator-badge.tsx` + wiring ở `message-item.tsx` | grep `orchestratorAdopted`: chỉ reader + test, không producer (README:159 tự ghi nhận) | grep 0 hit · typecheck · lint · `design-system` + `annotation-persist-cap` xanh |
+| A2 | nhánh `case 'memory_propose'` + hàng trong `DEFAULT_TOOL_CANDIDATES` | không có tool def ⇒ guard `CLIENT_TOOL_NAMES.has()` (`use-chat-orchestration.ts:1691`) chặn trước khi tới switch | grep 0 hit · typecheck · `capability-projection.test.ts` xanh |
+| A3 | `lib/skills.ts` (prompt library 2 tầng) + trường `skills` trong body `/api/chat` | `matchActiveSkills` chỉ tests; client gửi `skillIndex`/`hints` (`:5640`), không gửi `skills`; CLI cũng không gửi | grep 0 hit · typecheck · lint · `docs:check` xanh |
+| A4 | `formatRecallBanner` | grep chỉ `tests/memory-reviewer.test.ts` | typecheck · `memory-reviewer.test.ts` xanh |
+| A5 | import `PointInTimeReplayEngine` không dùng ở `lib/teamwork/cli.ts` | `--ledger-replay` chạy vòng `ledger.query` nội tuyến; class vẫn sống cho tests | typecheck · lint |
+
+Tài liệu sửa cùng lượt — `npm run docs:check` đỏ nếu doc còn nhắc file đã xoá: `README.md:159` (bullet orchestrator), `DESIGN.md:770` (nhắc `orchestrator-badge.tsx`). Comment trong `lib/db.ts:452` liệt kê annotation không còn ai ghi.
+
+**Không xoá test nào còn khoá hành vi đang chạy**: `tests/skills.test.ts` và `tests/orchestrator-badge.test.ts` xoá cùng mã chết; `annotation-persist-cap.test.ts` chỉ bỏ đúng một phần tử fixture.
+
+### Kết quả thi công (2026-10-15)
+
+| Lệnh | Kết quả |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | exit 0 — 0 lỗi, 8 cảnh báo (đúng baseline, không warning mới) |
+| `npm run docs:check` | exit 0 — 9 tài liệu, 0 lệch (605 file theo dõi) |
+| `tests/design-system.test.ts` | 47/47 |
+| `tests/annotation-persist-cap.test.ts` | 19/19 |
+| `tests/memory-reviewer.test.ts` | 12/12 |
+| `tests/capability-projection.test.ts` | 6/6 |
+| `tests/skills-disk.test.ts` | 19/19 |
+
+Hai lỗi thật do chính lượt sửa tạo ra, đã bắt và sửa trước khi xanh:
+
+1. **`message-item.tsx:520` còn gọi `getOrchestratorAdoptedAnnotation`** trong điều kiện `rowIsEmpty` — grep đầu chỉ tìm `OrchestratorBadge|orchestratorAdopted` nên **không khớp** tên hàm dạng `getOrchestratorAdoptedAnnotation` (chữ `Adopted` viết hoa). Thủ tục: grep lại bằng **tên định danh đầy đủ** trước khi cắt, đừng tin một pattern viết tay.
+2. **`docs:check` đỏ hai lần.** (a) `PROJECT.md` ghi 231 file test, thực tế 229 → sửa thành 229. (b) Bản sửa đầu của tôi lại **nhắc tên hai file test đã xoá** trong contract doc ⇒ checker báo "đường dẫn không tồn tại". Luật: contract doc (`PROJECT.md`, `README.md`, `DESIGN.md`…) không được nhắc file đã xoá; tên file cũ chỉ nằm ở record doc như `PLAN.md`.
+
+Ngoài phạm vi đợt này, ghi để khỏi quên:
+
+- **`docs:check` crash ENOENT với file xoá-chưa-commit** — checker lấy danh sách từ `git ls-files` (index) rồi đọc worktree (§13 đã ghi). Lượt này giải bằng `git add -u` đúng 4 file đã xoá rồi mới chạy. Chưa vá script — cần đợt riêng để nó skip file thiếu thay vì crash.
+- **Harness đã ghi đè `AGENTS.md` của repo** (129 dòng quy tắc làm việc bị thay bằng 7 dòng luật Termux). Đã `git restore AGENTS.md`; nếu hiện tượng lặp lại thì nghi do harness ghi nhầm file.
+
+---
+
+## 15. Xử lí cụm tính năng trùng nhau — 2026-10-15
+
+**Luật đã chốt:** không xoá tính năng đang chạy (xoá = mất khả năng, phải hỏi chủ repo). Chỗ trùng **có hại** không phải "hai mã giống nhau" mà là **hai đường không cùng luật**: một đường chặn, đường kia lọt. Sửa luật cho khớp, khoá bằng test.
+
+| Cụm | Quyết định | Trạng thái |
+|---|---|---|
+| **5 hệ ghi nhớ** (memory đã duyệt · đề xuất chờ duyệt · lesson · ZeroMem · chat_recall) | Giữ nguyên cả năm: chúng khác *kênh* (người duyệt tay / tự động / tra lịch sử), không trùng mã | ZeroMem **chưa có UI và không tự ghi** — ghi nhận, chưa đổi |
+| **Hai đường ghi file** (`fs_edit`+`fs_write` vs `code_patch`) | Giữ cả hai, **gộp luật về một chỗ** | Đã sửa 2 lỗi thật, xem dưới |
+| **Hai engine** (web `/api/chat` vs `lib/teamwork` headless) | Giữ: một là app, một là CLI (`npm run teamwork`) | PROJECT.md còn khoe M4 không tồn tại → còn mở |
+| **Hai đường tra web** (`/api/web` vs tool `web_search`) | Giữ: một là người dùng bấm nút, một là agent tự gọi; cùng backend là bình thường | Không đổi |
+
+### Hai lỗi thật tìm ra khi so luật của hai đường ghi file
+
+Cả hai do `code_patch` (port sarsed-code) được ghép vào mà không đi theo luật cũ:
+
+1. **Plan Mode không chặn `code_patch`.** `PLAN_MODE_WRITE_TOOLS` chỉ có
+   `fs_write, fs_edit, delegate` ⇒ ở chế độ Khảo sát, model vẫn thấy `code_patch`
+   và **sửa được file**, trái README §Plan Mode. Sửa: thêm `code_patch` vào set.
+   - **Test khoá bất biến gốc rễ** (`tests/chat-tools-router-projection.test.ts`):
+     mọi tool client có `category === 'fs_write'` trong `TOOL_CATALOG` đều phải có
+     mặt trong set — thêm tool ghi mà quên khai ở đây thì test đỏ ngay.
+   - Assert cũ "đúng 3 tool" đổi thành 4: **đổi hợp đồng có chủ đích**, không phải
+     nới assert để lấy xanh.
+2. **Tên tool ma `'apply_patch'`.** Handler `code_patch` truyền `'apply_patch'`
+   (không tồn tại trong repo) cho `autoApproveDiff` và audit log ⇒ đặt `code_patch`
+   = "tự duyệt" trong bảng phân quyền **không có tác dụng** (`shouldAutoApprove`
+   không nhận ra tên đó), còn nhật ký thì ghi ra một tool không tồn tại. Sửa: truyền
+   `'code_patch'`.
+   - Hướng sửa **bảo thủ hơn trước**: trước đó mọi lần ghi đều phải qua modal; sau khi
+     sửa, `code_patch` đi đúng như `fs_edit`/`fs_write` — tôn trọng lựa chọn của
+     người dùng thay vì bỏ qua. Không mở thêm đường ghi nào.
+
+README §Sửa có kỷ luật cập nhật: nói thẳng **hai đường ghi, chung một bộ luật**
+(modal diff · staging · phân quyền per-tool · Plan Mode) — chỗ người dùng dễ hiểu
+nhầm nhất, và trước đó tài liệu chỉ nói `fs_*`.
+
+### Còn mở — cần chủ repo chốt, tôi không tự quyết
+
+- **ZeroMem**: giữ hay gỡ? 4 tool nhưng không UI, không tự ghi, chồng vai với
+  `remember_memory` + `chat_recall`. Gỡ thì mất tính năng; giữ thì nên tự ghi trace
+  + có một chỗ quản lý. Hiện trạng **không hỏng gì** — chỉ là kho thường rỗng.
+- **PROJECT.md vs M4**: PROJECT.md liệt kê `lib/teamwork/context/` (3-Tier Context
+  Querying #22, Semantic Ontology #23) nhưng thư mục đó **không tồn tại** trong repo
+  (grep 0 hit). Viết lại thành "chưa làm" hay đặt lại thành việc — đó là quyết định
+  lộ trình, không phải dọn code, nên tôi không tự sửa.
+
+---
+
+## 16. Gỡ CLI + teamwork headless — 2026-10-15 (chủ repo đã chốt phạm vi)
+
+Chủ repo chọn phương án **xoá cả CLI lẫn teamwork headless**. Không code sản phẩm nào
+(`app/`, `components/`, `react/`) import hai hệ này — chỉ test + entry point.
+
+### Phải GIỮ (rủi ro phá tính năng còn sống)
+
+| File | Vì sao không xoá |
+|---|---|
+| `lib/scheduler/runner.ts` | `lib/bridge/server-bridge.ts` import 6 chỗ (scheduler daemon cho desktop) |
+| `lib/cli/session-manager.ts` → **`git mv` sang `lib/scheduler/session-manager.ts`** | `runner.ts:16` dùng `saveCliSession`; scheduler không cần CLI nhưng cần chỗ lưu session |
+| `lib/shell-policy.cjs`, `lib/secret-registry.ts` | Dùng bởi bridge/app, không phải riêng CLI |
+
+### Danh sách xoá
+
+- **CLI**: `bin/vyen.ts`; `lib/cli/{cli-surface,interactive-agent,recipe-list,recipe-runner}.ts`; test `cli-surface`, `cli-recipe-runner`, `redteam-cli`, `interactive-agent`.
+- **Teamwork**: `bin/teamwork.ts`; `lib/teamwork/**` (20 mục); 27 test `tests/teamwork-*.test.ts`; 3 file `teamwork/{PLAN,PROGRESS,REQUEST}.md` (sản phẩm runtime của engine, không còn ai ghi).
+- **Tham chiếu còn lại phải sửa** (bỏ sót thì typecheck/docs:check đỏ): `lib/scheduler/runner.ts:16` · `tests/scheduler-runner.test.ts:15` · `tests/safe-spawn.test.ts` (describe chỉ quét file teamwork+CLI) · `tests/secret-registry.test.ts` (3 `it` dựng `AutonomousCliAgent`) · `tests/web-bridge.test.ts` (spawn `bin/vyen.ts`) · `tests/title-generator-preamble.test.ts` (lấy mẫu tiền tố `/plan` từ CLI) · `lib/use-title-generator.ts:31` (docblock ví dụ CLI) · `tests/phase1-security-verification.cjs` (TEST 5.1 đọc file CLI) · `package.json` (script `cli`, `vyen`, `teamwork`).
+- **Docs contract**: `README.md` (recipe headless, CLI resume, "Chạy dự án", bảng biến môi trường CLI, dòng `bin/vyen.ts`), `docs/DESKTOP_ARCHITECTURE.md:13`, `docs/DESKTOP-CHOICE.md:15`, `PROJECT.md` (cả file là tài liệu kiến trúc teamwork ⇒ viết lại thành tombstone).
+
+Hai biến môi trường **giữ** vì còn code đọc: `MODEL_ALIAS_MAP` (`lib/models.ts:96`) và `COMPACT_MODEL_CHAIN` (`app/api/compact/route.ts:66`).
+
+### Quyết định phụ — test nào giữ, test nào xoá
+
+- `tests/cli-session.test.ts` → **`git mv` thành `tests/scheduler-session.test.ts`**: giữ, chỉ đổi import path.
+- `tests/title-generator-preamble.test.ts`: **giữ phần lõi** (PREAMBLE_RE/NOISE_RE của `deriveTitle` — logic đang chạy), **xoá đúng 1 `it`** khẳng định CLI còn phát tiền tố `/plan`. Xoá cả file thì mất coverage thật của regex tiêu đề.
+- `tests/safe-spawn.test.ts`: xoá **nguyên describe** "không còn shell:true trong executor nội bộ" — cả 3 file nó quét đều bị xoá; để lại thì vòng lặp rỗng luôn xanh (test rỗng).
+
+### Chứng minh
+
+`npm run typecheck` (exit 0) · `npm run lint` (0 lỗi, 8 cảnh báo baseline) · `npm run docs:check` (exit 0) · `CI=true vitest run` toàn bộ suite còn lại.
+
+### Kết quả thi công (2026-10-15)
+
+| Lệnh | Kết quả |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | exit 0 — 0 lỗi, 8 cảnh báo (đúng baseline) |
+| `npm run docs:check` | exit 0 — 9 tài liệu, 0 lệch (**516** file theo dõi, từ 605 xuống) |
+| `npm run verify:security` | exit 0 — phase1 + sprint-s1 + sprint-s2 **100% pass** |
+| 6 file test đã sửa (scheduler-runner, scheduler-session, secret-registry, safe-spawn, title-generator-preamble, web-bridge) | 87/87 xanh |
+| **Full suite** (`--shard=1/10 … 10/10`, 1 luồng) | **197 file · 3233 test xanh · 2 skip · 0 đỏ** (~4,5 phút tổng) |
+
+Vì sao chia shard: chạy `vitest run` một mạch bị harness restart giết 3 lần (mỗi lần
+mất ~4–15 phút). `--shard=i/10` cho mỗi lần ~25–37 giây nên không lần nào bị giết
+nữa — và 1 worker, không file-parallelism là mức tiêu tốn thấp nhất (mỗi worker
+vitest là một tiến trình Node riêng). Ghi lại để lần sau không phát minh lại.
+
+Không có file đỏ nào — kể cả `tests/secret-registry.test.ts` (khối ngân sách ReDoS
+hay đỏ trên máy chậm, PLAN §13 từng ghi 3 đỏ) lần này **xanh**: chạy tuần tự 1 luồng
+thì máy không tranh CPU.
+
+**CHƯA CHẠY: full suite** — **đã chạy xong, xem bảng trên** (chia 10 shard). Không
+còn lệnh nào chưa kiểm chứng cho đợt cắt này.
+
+---
+
+## 17. Bật ZeroMem thật: hoạt động + lỗi, có trần, có ngân sách — 2026-10-16
+
+Chủ repo duyệt để làm. Ba quyết định chủ repo chưa trả lời — tôi chốt theo hướng bảo thủ
+và ghi rõ ở đây là **lựa chọn của tôi**, đổi được nếu họ muốn:
+
+| Quyết định | Giá trị | Ai chọn |
+|---|---|---|
+| Mặc định | **tắt** | tôi (bảo thủ: không ghi gì khi chưa bật) |
+| Số trace giữ lại | **500**, cắt bỏ cái cũ nhất | tôi — **không có căn cứ trong code**, chỉ vì mỗi trace ngắn nên 500 ≈ vài trăm KB |
+| Có ghi tin nhắn người dùng? | **không** | tôi (bảo thủ: riêng tư + dữ liệu đó đã nằm sẵn trong lịch sử chat) |
+
+### Vì sao ghi hoạt động, không ghi nguyên văn
+
+BM25 và đồ thị của bản gốc đều chạy trên `t.text` (`src/substrate.ts`: `buildLexicalDense`
+và `buildGraph` cùng đọc `t.text`). Nhưng kết quả tool **không còn bản đầy đủ ở đâu cả**:
+cắt 24k khi lên model (`lib/tool-limits.ts:66`), 24k khi ghi Dexie (`lib/db.ts:384`),
+4k khi vào annotation (`lib/db.ts:431`). Nên "ghi mọi thứ" về mặt kỹ thuật cũng chỉ ghi được
+phần đã cắt — trong khi tin nhắn người dùng thì toàn văn và dài nhất.
+
+Cân bằng: trace của ta là **một dòng cô đọng mỗi lần hoạt động** — tên tool, đích, kết quả,
+mã lỗi. Phần lớt giá trị truy hồi nằm ở **định danh** (tên file, symbol, mã lỗi), mà định danh
+không dấu nên BM25 không bị lệch.
+
+### Bảy việc, thứ tự làm
+
+1. **Sửa BM25 không fold dấu** — `tokenizeForBM25` (`lib/zeromem/retriever.ts:30`) chỉ
+   `toLowerCase()` + split, không bỏ dấu ⇒ hỏi "hoa hau" không khớp "Hoa Hậu". Sửa: dùng
+   `foldText` (`lib/search-utils.ts:45`) và đổi regex sang `[^a-z0-9]+` (sau fold không còn
+   ký tự Unicode). Cùng một hàm nên tự sửa cả 3 call site. Test tiếng Việt có dấu/không dấu.
+2. **Sửa lỗi trần của retriever** (`retriever.ts:206`): dùng `continue` nên evidence sau
+   vẫn nhét dù hết trần, và evidence đầu tiên được phép vượt trần. Sửa: `break` + cắt cứng.
+3. **Ghi theo lô, có trần**: `persistZeroMem` (`persistence.ts:20`) hiện `bulkPut` toàn bộ
+   sau mỗi lần ghi ⇒ O(n²). Sửa: đánh dấu bẩn + chỉ ghi khi đã qua khoảng nghỉ, và cắt trace
+   ngoài 500 cái cũ nhất. Lưu ý: repo **không có** util debounce ghi chung dùng được
+   (`use-debounced-value` chỉ trì hoãy giá trị React) — nên bộ lịch nằm ngay trong file này.
+4. **Móc ghi sau mỗi lượt**: gom hoạt động tool của lượt thành 1 trace, đi qua
+   `redactSecretText` (`lib/secret-registry.ts:522`), và **tôn trọng**
+   `toolPermissions['memory'] === 'deny'` vì ghi tự động không đi qua bảng quyền.
+5. **Chèn vào prompt có ngân sách**: ngay sau `formatLessonsBlock` (`app/api/chat/route.ts:2095`)
+   — nhóm khối dữ liệu, sau mọi mệnh lệnh. Chỉ chèn khi bật VÀ câu hỏi chạm vào thứ đã từng
+   thấy. Bọc bằng `wrapUntrustedData` (`lib/taint-tracker.ts:145`) — đây là lần đầu nó được
+   gọi ở production; chỗ này hiện không có ai bọc.
+6. **Cài đặt**: key mới trong `lib/store.ts` + **bắt buộc thêm vào `partialize`** (`:364`),
+   thiếu thì F5 mất. UI: chip ở hàng chân composer cạnh `scopeChip`
+   (`components/composer.tsx:1609`), dùng `useAnchoredPanel` + `useFocusTrap` sẵn có.
+7. **Cố ý KHÔNG làm**: PPR 24 vòng, query routing, dense hash, MEMORY.md 2 chiều. Agent đề xuất
+   làm `md-layer` + `routing` trước; tôi giữ ý mình — chúng là *chất lượng truy hồi* và *bề mặt
+   người dùng*, mà cả hai đều vô nghĩa khi kho còn rỗng.
+
+### Trạng thái đã làm (2026-10-16)
+
+| # | Việc | File | Bằng chứng |
+|---|---|---|---|
+| 1 | BM25 fold dấu | `lib/zeromem/retriever.ts` | 6 test trong `tests/zeromem-vietnamese.test.ts`; **mutation check**: bỏ fold ⇒ 3 assert đỏ |
+| 2 | Trần retriever | `lib/zeromem/retriever.ts` | 4 assert; **mutation check**: trả hành vi cũ ⇒ 3 assert đỏ (1631 > 100) |
+| 3 | Ghi theo lô + trần | `lib/zeromem/persistence.ts`, `lib/zeromem/store.ts` (`trimTracesTo`) | 5 test `tests/zeromem-persistence-batching.test.ts` (đỏ trước khi thêm `trimTracesTo`) |
+| 4 | Ghi tự động | `lib/zeromem/auto-ingest.ts` + hook trong `react/use-chat-orchestration.ts` | 14 test; **mutation check** bỏ redact ⇒ đỏ, bỏ kiểm `deny` ⇒ đỏ |
+| 5 | Chèn vào prompt | `lib/zeromem/memory-block.ts` + `app/api/chat/route.ts` (schema `memoryEvidence`, bọc `wrapUntrustedData`) | **chưa có test**; typecheck OK |
+| 6 | UI + cờ cài đặt | `components/settings/zeromem-section.tsx`, `memory-tab.tsx`, `lib/store.ts` (khoá + `partialize` + validate), allow-list `tests/design-system.test.ts` | **chưa có test**; typecheck OK |
+
+Hai lỗi của chính tôi phát hiện khi làm (đã sửa, ghi để lần sau không lặp):
+- Test "không vượt trần" đầu tiên **xanh giả** vì fixture `'x'.repeat(4000)` là MỘT token
+  4000 ký tự → BM25 không có token nào khớp `xxxx` ⇒ 0 candidate. Đã thêm test riêng
+  "fixture thật sự sinh candidate" để chặn đúng lỗi này.
+- Hook ghi tự động ban đầu dùng biến `settings` không tồn tại trong scope (repo dùng
+  selector lẻ `useAppStore(s => s.settings.x)`) — đã đổi sang `zeromemEnabled`.
+
+### Vòng 2: code review (2026-10-16) — 1 Critical + 5 Important + 6 Minor
+
+Reviewer đọc diff bằng subagent (không chạy test). **1 lỗi Critical là thật, không
+phải báo động giả**:
+
+| Mức | Vấn đề | Cách sửa |
+|---|---|---|
+| **Critical** | `hydrateZeroMem` replay qua `appendTrace`, hàm đó **sinh id mới** (`tr-<now>-<len+1>`) ⇒ id RAM lệch id Dexie ⇒ `persistedIds` không khớp trace nào ⇒ **mỗi lần mở app chép thêm cả kho dưới id mới**, đúng loại tràn quota mà trần 500 sinh ra để chặn | `appendTrace` nhận `id` tuỳ chọn; `hydrateZeroMem` truyền `t.id`; `persistedIds` dựng từ id vừa replay; `staleIds` dùng Set thay `Array.includes` (O(n²)) |
+| Important | "Xoá kho" chỉ clear Dexie, RAM singleton vẫn còn ⇒ bộ nhớ đã xoá vẫn được chèn vào prompt tới khi F5 | `clearZeroMemStores()` trong `tools.ts`, gọi kèm `__resetPersistState()` |
+| Important | Lượt ghi rơi vào cửa sổ nghỉ 2 s chỉ giữ cờ bẩn, không có đường flush ⇒ mất trace khi đóng tab | `scheduleZeroMemFlush` hẹn đuôi + listener `visibilitychange`/`pagehide` gọi `force: true` |
+| Important | `zeromemEnabled`/`toolPermissions` không có trong deps của `useCallback` ⇒ tắt cờ rồi vẫn gửi `memoryEvidence`, bật lên thì im lặng | thêm cả hai vào deps |
+| Important | Effect quét **toàn bộ** `messages` ⇒ bật cờ giữa chat nuốt hết lịch sử; và chỉ đánh dấu "message xong" nên tool về muộn không bao giờ được ghi | `baseline` chặn lịch sử cũ; đếm **số invocation đã ghi** và `slice(already)` |
+| Important | `turnIndex = traces.length + 1` ⇒ sau cắt, trace mới lại mang `Turn #1…` trùng trace cũ đã bị cắt | bộ đếm `turnCounter` đơn điệu, không bị `trimTracesTo` reset |
+| Important | `bulkPut` entity/relation mỗi lần ghi, không trần, không xoá ⇒ Dexie phình vô hạn | chỉ ghi đồ thị khi có trace **mới**, và `bulkDelete` các dòng Dexie không còn trong đồ thị RAM |
+| Minor | `autoIngestTurn` trả số hoạt động đưa vào chứ không phải số trace ghi ⇒ lượt có dòng rỗng bị coi là đã ghi, mất vĩnh viễn | đếm `written` thật |
+| Minor | `hydrateZeroMem` bị bỏ qua khi RAM đã có trace ⇒ kho đã lưu từ phiên trước không bao giờ nạp | hook ghi tự động gọi `hydrateZeroMem` trước khi ghi |
+| Minor | `zeromemEnabled` không validate khi merge ⇒ giá trị rác trong storage chảy thẳng vào cổng ghi dữ liệu | thêm `typeof === 'boolean'` đúng mẫu các boolean khác |
+| Minor | Comment sai (`min(1)` vs `Math.max(0, …)`; `persistedTraceCount` nói "dùng cho UI" nhưng UI đếm Dexie) | sửa comment |
+
+### Trạng thái kiểm chứng — ĐỌC KỸ TRƯỚC KHI TIN
+
+| Lệnh | Kết quả |
+|---|---|
+| `npx tsc --noEmit` (2 lần: trước và sau vòng review) | **exit 0, không lỗi** — gồm cả 3 file test mới |
+| `vitest` (bất kỳ file nào) | **KHÔNG CHẠY ĐƯỢC**: máy còn ~300 MB RAM trống (host hút), mọi lần chạy đều bị OOM giật server. Đã thử 3 lần trên 2 file khác nhau — kể cả `tests/zeromem-vietnamese.test.ts` vốn xanh và **không** import Dexie. Không phải lỗi code. |
+| `npm run lint` / `docs:check` | **chưa chạy** |
+
+Nói thẳng: **test hồi quy cho vòng review (5 test mới trong
+`tests/zeromem-persistence-batching.test.ts`) đã viết, qua typecheck, nhưng CHƯA
+từng chạy.** Chạy được thì kiểm chứng bằng mutation (bỏ `id` trong
+`appendTrace` ⇒ phải đỏ) trước khi tin.
+
+**Chủ repo cần tự chạy** (chạy tuần tự, 1 luồng — máy đang thiếu RAM):
+```
+npm run lint
+npm run docs:check
+CI=true ./node_modules/.bin/vitest run tests/zeromem-persistence-batching.test.ts --maxWorkers=1 --no-file-parallelism
+CI=true ./node_modules/.bin/vitest run tests/zeromem-vietnamese.test.ts tests/zeromem-auto-ingest.test.ts tests/zeromem.test.ts tests/design-system.test.ts --maxWorkers=1 --no-file-parallelism
+CI=true ./node_modules/.bin/vitest run --shard=1/10 --maxWorkers=1 --no-file-parallelism   # rồi tới 2/10 … 10/10
+```
+
+### Sự thật chưa giải quyết, ghi để không quên
+
+- **Thanh đo ngữ cảnh không tính khối của ta**: `estimatePromptTokens` chỉ nhận
+  `[summary, systemPrompt]` (`use-chat-orchestration.ts:3770`) — hints/web/pdf/memories hiện
+  tại cũng không được tính. Khối memory sẽ thừa so với thứ đo ⇒ trần của ta là trần trên giấy
+  nếu không sửa cả chỗ này. **Để đợt sau**, ghi ở đây để không mất dấu.
+- `redactSecretText` bỏ qua bí mật **ngắn hơn 8 ký tự** (`secret-registry.ts:50`), tầng pattern
+  cần ≥16 ký tự trong nháy — chỉ an toàn khi dữ liệu đã qua đường redact sẵn
+  (`serializeToolResult`). Vì vậy móc ghi lấy từ **kết quả đã redact** trong
+  `executeClientToolCall` (`use-chat-orchestration.ts:2702-2730`), không đọc lại dữ liệu thô.
+
+Cũng **chưa chạy lại** `npm run lint` sau khi sửa comment trong `eslint.config.mjs`
+(chỉ sửa chữ trong khối `ignores` — mảng `ignores` không đổi, nên hành vi lint không
+đổi; nhưng đó là suy luận của tôi, không phải số đo).
+
+Số file test còn lại: **202** (từ 231 lúc bắt đầu đợt 14: −2 test chết của orchestrator/skills, −4 test CLI, −1 test tích hợp qua `HeadlessToolRunner`, −27 suite teamwork, +1 đổi tên `cli-session` → `scheduler-session`).
+
+Ba chỗ vỡ phát hiện khi cắt, đã xử lý:
+
+1. **`lib/secret-registry.ts` (production) import `DEFAULT_DENY_PATTERNS` từ `lib/teamwork/sandbox/env-scrubber`** — xoá teamwork là gãy app. Sửa: chuyển hằng số (6 regex) vào thẳng `lib/secret-registry.ts`, giữ nguyên từng pattern; nó vốn chỉ có một chỗ dùng.
+2. **`tests/zeromem-sarsed-integrated.test.ts`** chạy qua `HeadlessToolRunner` của teamwork. Xoá cả file — coverage từng mảng còn đủ ở `tests/zeromem.test.ts` + `tests/sarsed-code.test.ts`; mất đúng cái duy nhất là "tích hợp qua runner headless", mà runner đó không còn.
+3. **`TEST_INFRA.md`** liệt 7 file teamwork đã xoá ⇒ `docs:check` đỏ. Đã thay bằng mô tả suite còn sống.
+
+Ranh giới mình tự vạch và không vượt: `lib/scheduler/runner.ts` + `lib/bridge/server-bridge.ts` (scheduler desktop) **giữ nguyên**; chỉ `session-manager.ts` đi kèm từ `lib/cli/` sang `lib/scheduler/`.

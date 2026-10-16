@@ -149,31 +149,10 @@ describe('spawnArgv / runArgvCommand — không có shell', () => {
   }, 15000);
 });
 
-describe('không còn shell:true trong executor nội bộ (chống tái phát)', () => {
-  it('các file executor không DÙNG "shell: true" (bỏ qua comment)', async () => {
-    const fs = await import('node:fs');
-    const files = [
-      'lib/teamwork/sandbox/process-manager.ts',
-      'lib/teamwork/permission-broker.ts',
-      'lib/cli/cli-surface.ts',
-    ];
-    for (const f of files) {
-      const code = fs
-        .readFileSync(f, 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, '') // comment block
-        .replace(/^\s*\/\/.*$/gm, ''); // comment dòng
-      expect(code.includes('shell: true')).toBe(false);
-    }
-  });
-
-  it('mọi executor đi qua spawnArgv của safe-spawn', async () => {
-    const fs = await import('node:fs');
-    const files = [
-      'lib/teamwork/sandbox/process-manager.ts',
-      'lib/teamwork/permission-broker.ts',
-    ];
-    for (const f of files) {
-      expect(fs.readFileSync(f, 'utf8')).toContain('spawnArgv');
-    }
-  });
-});
+/*
+ * Khối "không còn shell:true trong executor nội bộ" đã bị XOÁ (2026-10-15): cả ba
+ * file nó quét (`lib/teamwork/sandbox/process-manager.ts`,
+ * `lib/teamwork/permission-broker.ts`, `lib/cli/cli-surface.ts`) đều bị gỡ cùng
+ * CLI/teamwork headless. Để lại danh sách rỗng thì vòng lặp luôn xanh — test rỗng.
+ * Phần còn lại của file (safe-spawn runtime) vẫn được kiểm ở các describe trên.
+ */

@@ -91,7 +91,6 @@ describe('DESIGN.md — Vyen design-system contract', () => {
     '../components/chat/status-line.tsx',
     '../components/chat/tool-trace.tsx',
     '../components/chat/turn-header.tsx',
-    '../components/chat/orchestrator-badge.tsx',
     '../components/settings-dialog.tsx',
     /* Các section + tab tách ra từ settings-dialog.tsx — cùng thuộc bề mặt
        Settings nên phải chịu chung hợp đồng, nếu không chúng sẽ lệch chuẩn dần. */
@@ -99,6 +98,9 @@ describe('DESIGN.md — Vyen design-system contract', () => {
     '../components/settings/vision-model-section.tsx',
     '../components/settings/slash-commands-section.tsx',
     '../components/settings/auto-backup-section.tsx',
+    /* Đợt 17: section Zero-Mem thêm 2026-10-16 — cùng bề mặt Settings nên
+       chịu chung hợp đồng design-system như các section còn lại. */
+    '../components/settings/zeromem-section.tsx',
     '../components/settings/appearance-tab.tsx',
     '../components/settings/providers-tab.tsx',
     '../components/settings/safety-tab.tsx',

@@ -26,17 +26,15 @@ const MAX_TITLE_CHARS = 60;
 /**
  * Tiền tố hệ thống chèn vào tin nhắn người dùng.
  *
- * Nguồn duy nhất còn phát ra tiền tố là lệnh `/plan` của CLI
- * (`lib/cli/interactive-agent.ts`, `agent.streamTurn(...)`):
+ * Nguồn từng phát ra tiền tố là lệnh `/plan` của CLI:
  *   `[Chế độ Lập Kế Hoạch - Plan Mode] Hãy nghiên cứu codebase ...`
- * Mẫu cũ `[Chế độ Boost Worktree]` đã bị gỡ khỏi nhánh `/boost` — đừng dùng
- * lại làm ví dụ, code không còn sinh ra nó nữa.
- *
- * Nói thẳng để khỏi tự dệ: hôm nay KHÔNG đường nào đưa tiền tố tới đây.
+ * CLI headless đã bị gỡ (2026-10-15) nên **không còn emitter nào** sinh ra nó.
+ * Regex ở lại là đường phòng thủ cho lúc nào đó lại có ai dán tiền tố — và để
+ * đọc lại được các phiên đã lưu trong Dexie từ thời còn CLI: dữ liệu cũ vẫn
+ * mang tiền tố này, bỏ regex thì hôm nay tiêu đề ăn nhầm phần dán đó.
  * `/plan` trên web (`react/use-chat-orchestration.ts`) gửi thẳng `slash.target`
- * không kèm ngoặc vuông, còn CLI có vòng lặp riêng, không gọi `deriveTitle`.
- * Regex ở lại là đường phòng thủ cho lúc nào đó lại có ai dán tiền tố — bỏ thì
- * hôm nào nó quay lại, tiêu đề lại ăn nhầm ngay phần dán đó.
+ * không kèm ngoặc vuông. Mẫu cũ `[Chế độ Boost Worktree]` đã bị gỡ khỏi nhánh
+ * `/boost` — đừng dùng lại làm ví dụ, code không còn sinh ra nó nữa.
  *
  * Chỉ bỏ ở ĐẦU chuỗi và chỉ trên một dòng. Sau `]` bắt buộc là hết chuỗi hoặc
  * khoảng trắng (`(?=\s|$)`) — thiếu điều kiện đó thì `[React](https://...)` bị

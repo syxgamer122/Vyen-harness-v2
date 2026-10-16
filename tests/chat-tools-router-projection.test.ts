@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { zodSchema } from 'ai';
 import { describe, expect, it } from 'vitest';
-import { ALL_TOOL_CATEGORIES, TOOL_CATEGORY_LABELS } from '@/lib/tool-catalog';
+import { ALL_TOOL_CATEGORIES, TOOL_CATALOG, TOOL_CATEGORY_LABELS } from '@/lib/tool-catalog';
 import { CLIENT_TOOL_DEFS } from '@/lib/agent-tools';
 import {
   buildToolIndex,
@@ -281,14 +281,33 @@ describe('bộ lọc cũ không bị bỏ rơi khi thêm bộ lọc router', () 
     expect(CLIENT_PREDICATE).toContain('!droppedByRouter(name)');
   });
 
-  it('PLAN_MODE_WRITE_TOOLS vẫn đúng 3 tool: plan mode chặn lệnh ghi', () => {
+  it('PLAN_MODE_WRITE_TOOLS đúng 4 tool: plan mode chặn MỌI lệnh ghi của client', () => {
     const m = routeSource.match(/const PLAN_MODE_WRITE_TOOLS = new Set\(\[([^\]]*)\]\);/);
     expect(m).not.toBeNull();
     expect((m![1].match(/'[^']+'/g) ?? []).sort()).toEqual([
+      "'code_patch'",
       "'delegate'",
       "'fs_edit'",
       "'fs_write'",
     ]);
+  });
+
+  /**
+   * Bất biến gốc rễ của bug 15/10: `code_patch` (port sarsed-code) được ghép vào
+   * mà không vào danh sách này ⇒ ở Plan Mode model vẫn gọi được nó và sửa file,
+   * trái README. Danh sách phải phủ HẾT mọi tool client có category `fs_write`,
+   * không phải "3 tool cũ" — thêm tool ghi mà quên khai ở đây là lặp lại bug.
+   */
+  it('mọi tool client category fs_write đều nằm trong PLAN_MODE_WRITE_TOOLS', () => {
+    const m = routeSource.match(/const PLAN_MODE_WRITE_TOOLS = new Set\(\[([^\]]*)\]\);/);
+    const declared = new Set((m![1].match(/'[^']+'/g) ?? []).map((s) => s.replace(/'/g, '')));
+    const writers = TOOL_CATALOG.filter((t) => t.kind === 'client' && t.category === 'fs_write').map(
+      (t) => t.name,
+    );
+    expect(writers.length).toBeGreaterThan(0);
+    for (const name of writers) {
+      expect(declared.has(name), `${name} ghi file mà plan mode không chặn`).toBe(true);
+    }
   });
 
   it('nativeClientToolNames vẫn suy từ clientToolNames trừ NATIVE_EXCLUDED', () => {

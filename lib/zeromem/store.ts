@@ -29,6 +29,8 @@ export class ZeroMemStore {
   private retriever: ZeroMemRetriever;
   private currentEpisodeId?: string;
   private cumulativeTokensSaved = 0;
+  /** Bộ đếm turn đơn điệu — xem chỗ gán `turnIndex`. */
+  private turnCounter = 1;
 
   constructor(
     public readonly workspaceKey: string = 'default',
@@ -79,6 +81,13 @@ export class ZeroMemStore {
    * Automatically extracts entities and links them into the Entity-Context Graph with ZERO LLM calls!
    */
   appendTrace(input: {
+    /**
+     * Cho REPLAY giữ nguyên id đã lưu. Không có tham số này, id được sinh lại
+     * (`tr-<now>-<len+1>`) ⇒ id trong RAM khác id trong Dexie ⇒ lần ghi sau coi
+     * MỌI trace là "chưa ghi" và `bulkPut` thêm hàng loạt bản trùng mỗi lần
+     * mở app. Đây là lỗi đã xảy ra thật, không phải suy đoán.
+     */
+    id?: string;
     sessionId: string;
     episodeId?: string;
     role: ZeroMemTraceRole;
@@ -90,7 +99,7 @@ export class ZeroMemStore {
   }): ZeroMemTrace {
     const now = input.now ?? Date.now();
     const episodeId = input.episodeId ?? this.currentEpisodeId ?? `ep-default-${input.sessionId}`;
-    const traceId = `tr-${now}-${this.traces.length + 1}`;
+    const traceId = input.id ?? `tr-${now}-${this.traces.length + 1}`;
 
     // Extract entities & relations deterministically
     const extraction = extractEntities(input.content, {
@@ -114,7 +123,11 @@ export class ZeroMemStore {
       id: traceId,
       sessionId: input.sessionId,
       episodeId,
-      turnIndex: this.traces.length + 1,
+      /* Bộ đếm RIÊNG, không phải `traces.length + 1`: sau `trimTracesTo` độ dài
+         mảng lại nhỏ xuống, nên `length + 1` đánh số lại từ đầu và mọi trace
+         mới mang `Turn #1…` trùng với trace cũ đã bị cắt. Bộ đếm không bị
+         `trimTracesTo` reset. */
+      turnIndex: this.turnCounter++,
       role: input.role,
       content: input.content,
       toolName: input.toolName,
@@ -169,6 +182,21 @@ export class ZeroMemStore {
    */
   getGraph(): EntityContextGraph {
     return this.graph;
+  }
+
+  /**
+   * Giữ lại N trace mới nhất, bỏ phần cũ khỏi bộ nhớ trong RAM.
+   *
+   * Vì sao cần: trace là append-only, nên nếu không cắt, store phình vô hạn
+   * trong suốt phiên làm việc và mọi lần truy hồi phải quét lại toàn bộ
+   * (truy hồi là đường nóng của mỗi lượt). Trần được áp ở `persistZeroMem`
+   * (cấp Dexie) và ở đây (cấp RAM) — hai chỗ, cùng một con số.
+   */
+  trimTracesTo(maxTraces: number): number {
+    if (this.traces.length <= maxTraces) return 0;
+    const dropped = this.traces.length - maxTraces;
+    this.traces = this.traces.slice(-maxTraces);
+    return dropped;
   }
 
   /**

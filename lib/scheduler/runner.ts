@@ -13,7 +13,7 @@ import path from 'node:path';
 import os from 'node:os';
 import type { ScheduleRecord, ScheduleStatus } from '../db';
 import { matchesCron, isValidCron } from './cron';
-import { saveCliSession, type CliSessionData } from '../cli/session-manager';
+import { saveCliSession, type CliSessionData } from './session-manager';
 import { parseRecipeText, prepareRecipeRun, resolveParameters, type Recipe } from '../recipes';
 
 export interface SchedulerState {

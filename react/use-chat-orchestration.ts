@@ -265,6 +265,8 @@ import {
   getZeroMemStore,
 } from '@/lib/zeromem/tools';
 import { hydrateZeroMem, persistZeroMem } from '@/lib/zeromem/persistence';
+import { autoIngestTurn } from '@/lib/zeromem/auto-ingest';
+import { buildMemoryBlock } from '@/lib/zeromem/memory-block';
 import {
   executeCodePatch,
   executeCodeSkeleton,
@@ -274,7 +276,7 @@ import {
 import { gatherPdfContexts } from '@/lib/use-pdf-context';
 import { addMemory, listMemories } from '@/lib/db';
 import { proposeCandidate, queryRecallPack } from '@/lib/memory/store';
-import type { RecallPack, MemoryKind } from '@/lib/memory/types';
+import type { RecallPack } from '@/lib/memory/types';
 import { X } from 'lucide-react';
 import { compressImageFiles } from '@/lib/image-compress';
 import type { BranchInfo } from '@/components/chat/message-item';
@@ -463,6 +465,8 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
   const autoPilot = useAppStore((s) => s.settings.autoPilot ?? false);
   const approvalPolicy = useAppStore((s) => s.settings.approvalPolicy ?? 'smart');
   const toolPermissions = useAppStore((s) => s.settings.toolPermissions);
+  /* Zero-Mem: bật ghi tự động (mặc định tắt — xem lib/store.ts zeromemEnabled). */
+  const zeromemEnabled = useAppStore((s) => s.settings.zeromemEnabled ?? false);
   /** Staging sandbox: fs_edit/fs_write ghi vào bộ đệm thay vì đĩa. */
   const stagingEnabled = useAppStore((s) => s.settings.stagingSandbox ?? true);
   /** Lead/Worker routing (P1-5): override model mỗi lượt theo state machine. */
@@ -2058,11 +2062,11 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
               await saveTurnCapture(turnCaptureRef.current);
             }
             // Phải truyền baseHash: fsWrite chỉ kiểm TOCTOU ở tầng ghi thật khi có
-            // expectedBaseHash (lib/fs-access.ts:512). fs_edit (:1934) và
-            // apply_patch (:2620) đều truyền; fs_write thì không — nên check ở
-            // :2048 chỉ bảo vệ tới lúc đó, rồi mở cửa sổ tới lúc ghi. Ứng dụng
-            // khác sửa file trong khoảng đó sẽ bị ghi đè im lặng.
-            // currentDiskHash = null nghĩa là file CHƯA tồn tại (đọc ở :2046
+            // expectedBaseHash (lib/fs-access.ts:512). fs_edit và code_patch đều
+            // truyền; fs_write thì không — nên check ở dòng trên chỉ bảo vệ tới lúc
+            // đó, rồi mở cửa sổ tới lúc ghi. Ứng dụng khác sửa file trong khoảng đó
+            // sẽ bị ghi đè im lặng.
+            // currentDiskHash = null nghĩa là file CHƯA tồn tại (đọc ở dòng trên
             // thất bại) — không có bản gốc để so, nên không truyền hash.
             const writeGuard = currentDiskHash ?? undefined;
             const writeRes = isDesktop
@@ -2428,26 +2432,6 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
             }
           }
 
-          case 'memory_propose': {
-            const text = String(args.text ?? '').trim();
-            if (text.length < 5) {
-              return JSON.stringify({ ok: false, error: 'Ghi nhớ quá ngắn (tối thiểu 5 ký tự).' });
-            }
-            const kind = (args.kind as MemoryKind) || 'pattern';
-            try {
-              const cand = await proposeCandidate({
-                text,
-                kind,
-                scope: { kind: 'project', ref: currentChat?.id || 'default' },
-                provenance: { threadId: currentChat?.id || 'main' },
-              });
-              showNotice(`Đã đề xuất ghi nhớ [${kind}]: ${text.slice(0, 50)}… (Chờ duyệt)`);
-              return JSON.stringify({ ok: true, id: cand.id, kind, text, status: 'pending' });
-            } catch (e) {
-              return JSON.stringify({ ok: false, error: `Lỗi đề xuất ghi nhớ: ${e instanceof Error ? e.message : String(e)}` });
-            }
-          }
-
           /* ---------------------------------------------------------------- */
           /* Zero-Mem — bộ nhớ 0 token                                        */
           /* ---------------------------------------------------------------- */
@@ -2596,7 +2580,7 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
               path: targetPath,
               oldText: original,
               newText: patched.modifiedContent,
-              toolName: 'apply_patch',
+              toolName: 'code_patch',
               existedBefore: true,
             });
             if (!approved) {
@@ -2626,7 +2610,7 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
               await saveTurnCapture(turnCaptureRef.current);
             }
             const res = isDesktop ? await desktopFsWrite(targetPath, patched.modifiedContent, baseHash ?? undefined, true) : await fsWrite(wsForFs!, targetPath, patched.modifiedContent, baseHash ?? undefined);
-            void recordAuditLog({ action: 'file_modification', tool: 'apply_patch', target: targetPath, decision: 'executed', payload: { path: targetPath, hunksApplied: patched.hunksApplied }, chatId: chatKey });
+            void recordAuditLog({ action: 'file_modification', tool: 'code_patch', target: targetPath, decision: 'executed', payload: { path: targetPath, hunksApplied: patched.hunksApplied }, chatId: chatKey });
             const editChecks = await runPostEditChecks();
             const editResult = JSON.stringify({
               ok: true,
@@ -3418,6 +3402,120 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
       }
     }
   }, [messages, isLoading, chatKey]);
+
+  /* Zero-Mem: ghi TỰ ĐỘNG hoạt động của lượt vào kho (2026-10-16).
+   *
+   * Vì sao ở đây: taint tracking phía trên đã cho thấy pattern chuẩn của repo —
+   * quét `toolInvocations` của message assistant khi stream hoàn tất, vì đó là
+   * nơi duy nhất thấy KẾT QUẢ tool đã thật (kể cả tool chạy server-side trong
+   * route). Ta ghi theo cùng nhịp, chỉ ghi một lần cho mỗi lượt.
+   *
+   * Chỉ ghi `toolInvocations` có state 'result' và tool KHÔNG phải của chính bộ
+   * nhớ (`zeromem_*`) — nếu không, mỗi lần agent tra bộ nhớ sẽ sinh thêm một
+   * trace về bộ nhớ: tự nhân bản, và truy hồi sau đó nhiễu bằng chính nó.
+   *
+   * BA CỬA SỔ đã đóng sau lần đầu (mọi cái đều do reviewer chỉ ra):
+   * 1. `zeromemIngestedRef` đếm SỐ invocation đã ghi theo message — nếu chỉ
+   *    đánh dấu "message này xong" thì các tool về MUỘN trong cùng lượt không
+   *    bao giờ được ghi.
+   * 2. `baseline` chặn việc nuốt lịch sử cũ: bật cờ giữa cuộc trò chuyện (hoặc
+   *    mở lại app) thì toàn bộ lịch sử tool sẽ bị ghi trong một nhịp, đẩy kho
+   *    đầy trước khi người dùng làm được gì.
+   * 3. Ghi theo VỊ TRÍ invocation, không theo sự tồn tại ⇒ không nhân bản. */
+  const zeromemIngestedRef = useRef<Map<string, number>>(new Map());
+  const zeromemBaselineRef = useRef<Set<string> | null>(null);
+  const zeromemBaselineChatRef = useRef<string | null>(null);
+  const zeromemSendingRef = useRef(false);
+  useEffect(() => {
+    if (!zeromemEnabled) {
+      // Tắt cờ: xoá mốc để lần bật sau chỉ ghi từ thời điểm bật.
+      zeromemBaselineRef.current = null;
+      zeromemBaselineChatRef.current = null;
+      return;
+    }
+    if (isLoading) return;
+
+    if (zeromemBaselineRef.current === null || zeromemBaselineChatRef.current !== chatKey) {
+      /* Chat đã có lịch sử ngay lúc effect chạy VÀ người dùng chưa gửi gì
+         trong phiên này ⇒ những message đang có là lịch sử cũ: đánh dấu để
+         bỏ qua. Chat vừa tạo (chưa có message) hoặc người dùng vừa gửi ⇒
+         mốc rỗng, ghi từ đầu. */
+      const isPreExistingHistory =
+        messages.length > 0 && currentChatId !== null && !zeromemSendingRef.current;
+      zeromemBaselineRef.current = new Set(
+        isPreExistingHistory
+          ? messages
+              .filter((m) => m.role === 'assistant')
+              .map((m) => `${chatKey}:${m.id}`)
+          : [],
+      );
+      zeromemBaselineChatRef.current = chatKey;
+      if (isPreExistingHistory) return;
+    }
+
+    const baseline = zeromemBaselineRef.current;
+    const store = getZeroMemStore(currentZeroMemKey());
+    /* Nạp kho đã lưu TRƯỚC khi ghi. Không có bước này, kho singleton có thể
+       đã có trace của phiên (do auto-ingest) trước lúc `buildMemoryBlock`
+       kịp hydrate ⇒ lượt sau truy hồi chỉ thấy phiên này, mất kho đã lưu. */
+    void hydrateZeroMem(store).then(() => {
+      for (const message of messages) {
+        if (message.role !== 'assistant') continue;
+        const key = `${chatKey}:${message.id}`;
+        if (baseline.has(key)) continue;
+        const invs =
+          (message as {
+            toolInvocations?: Array<{
+              state?: string;
+              toolName?: string;
+              result?: unknown;
+              args?: Record<string, unknown>;
+            }>;
+          }).toolInvocations ?? [];
+        const finished = invs
+          .filter((inv) => inv.state === 'result' && typeof inv.toolName === 'string')
+          .filter((inv) => !inv.toolName!.startsWith('zeromem_'));
+        const already = zeromemIngestedRef.current.get(key) ?? 0;
+        const pending = finished.slice(already);
+        if (pending.length === 0) continue;
+        const written = autoIngestTurn(store, {
+          enabled: true,
+          memoryPermission: toolPermissions.memory,
+          sessionId: currentChat?.id || 'session-default',
+          activities: pending.map((inv) => ({
+            toolName: inv.toolName!,
+            target:
+              typeof inv.args?.path === 'string'
+                ? inv.args.path
+                : typeof inv.args?.command === 'string'
+                  ? inv.args.command
+                  : undefined,
+            failed: (inv.result as { error?: unknown } | undefined)?.error !== undefined,
+          })),
+        });
+        if (written > 0) {
+          zeromemIngestedRef.current.set(key, already + written);
+          void persistZeroMem(store);
+        }
+      }
+    });
+  }, [messages, isLoading, zeromemEnabled, chatKey, currentChatId, currentChat?.id, toolPermissions]);
+
+  /* Tab ẩn / đóng ⇒ ghi nốt phần đang chờ. Không có bước này, trace của lượt
+     cuối bị hoãn bởi khoảng nghỉ 2 giây sẽ mất khi người dùng đóng tab. */
+  useEffect(() => {
+    if (!zeromemEnabled || typeof document === 'undefined') return;
+    const flush = () => {
+      if (document.visibilityState !== 'hidden') return;
+      void persistZeroMem(getZeroMemStore(currentZeroMemKey()), { force: true });
+    };
+    document.addEventListener('visibilitychange', flush);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', flush);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [zeromemEnabled]);
 
   /* Nối các ref mà reconciler dùng — dùng ref để callback ở trên không bị
      phụ thuộc vào identity của hàm/mảng do useChat cấp. */
@@ -5664,6 +5762,29 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
         };
       }
 
+      /* Zero-Mem: khối bộ nhớ truy hồi được gửi kèm lượt. Server KHÔNG đọc
+         được IndexedDB nên phải tính ở đây; server chỉ bọc chống injection rồi
+         chèn. Hàm tự trả '' khi tắt / bị chặn / không có gì liên quan. */
+      if (zeromemEnabled) {
+        try {
+          const memoryEvidence = await buildMemoryBlock({
+            enabled: true,
+            memoryPermission: toolPermissions.memory,
+            query: userText,
+            sessionId: currentChat?.id || 'session-default',
+            workspaceKey: currentZeroMemKey(),
+          });
+          if (memoryEvidence) {
+            options.body = { ...options.body, memoryEvidence };
+          }
+          /* Đánh dấu "đang trong phiên gửi" để hook ghi tự động biết các
+             message sinh ra từ đây là LƯỢT MỚI, không phải lịch sử cũ. */
+          zeromemSendingRef.current = true;
+        } catch {
+          /* Bộ nhớ lỗi thì gửi lượt không kèm — chat vẫn phải chạy. */
+        }
+      }
+
       /* Recipe đang chạy : MỌI lượt của run — kể cả prompt retry —
          đều mang body.recipe để server inject instructions + áp tool policy.
          Model override của recipe chỉ áp khi model đó nằm trong danh sách
@@ -5736,7 +5857,10 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
       console.error('[onSubmit]', err);
       return false;
     }
-  }, [attachments, isLoading, currentChat, currentChatId, draftId, setCurrentChatId, append, pin, generateTitle, messages, webSearchEnabled, agentToolsEnabled, forceEmulatedTools, agentMode, stagingEnabled, startFreshRun, MODELS, model, isRoutableModel, routingBodyFor, approvalPolicy, autoPilot]);
+  /* `zeromemEnabled` + `toolPermissions` PHẢI có ở đây: closure cũ giữ `true`
+     sau khi người dùng tắt cờ ⇒ vẫn gửi `memoryEvidence` (đọc bộ nhớ lúc đã
+     tắt); ngược lại bật lên thì im lặng không gửi tới khi dep khác đổi. */
+  }, [attachments, isLoading, currentChat, currentChatId, draftId, setCurrentChatId, append, pin, generateTitle, messages, webSearchEnabled, agentToolsEnabled, forceEmulatedTools, agentMode, stagingEnabled, startFreshRun, MODELS, model, isRoutableModel, routingBodyFor, approvalPolicy, autoPilot, zeromemEnabled, toolPermissions]);
 
   /* ---------------------------------------------------------------- */
   /* Recipe runner : attempt → checks → retry/pass/stop.   */

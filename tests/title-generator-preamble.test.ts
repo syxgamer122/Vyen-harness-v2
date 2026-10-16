@@ -9,9 +9,14 @@
  * Sửa: `(?=\s|$)` — sau `]` phải là hết chuỗi hoặc khoảng trắng.
  *
  * Sợ nhầm ngược (regex ngừng khớp tiền tố thật) thì tệ hơn bug đang sửa, nên
- * ở đây tiền tố không được hardcode theo trí nhớ: `planBranch` cắt thẳng từ
- * source `lib/cli/interactive-agent.ts` và lấy đúng chuỗi mà nhánh `/plan` còn
- * gửi đi. Đổi emitter -> test đỏ ngay ở chỗ cần đổi, không âm thầm lệch.
+ * ở đây tiền tố không được hardcode theo trí nhớ.
+ *
+ * LỊCH SỬ (2026-10-15): trước đây mẫu này được CẮT từ source
+ * `lib/cli/interactive-agent.ts` để tự bám emitter. CLI headless đã bị gỡ, nên
+ * không còn emitter nào gửi tiền tố dạng đó — mẫu bên dưới là **fixture** mô
+ * phỏng hình dạng chuỗi mà các phiên đã lưu trong Dexie vẫn có (tin nhắn cũ từ
+ * thời CLI). Các `it` bên dưới vẫn kiểm regex đang chạy trong
+ * `lib/use-title-generator.ts`; chỉ mất ràng buộc "emitter còn sống".
  *
  * Mỗi `it` ghi rõ điều kiện đảo ngược nào làm nó ĐỎ. Không có `it` nào ở đây
  * mà câu hỏi "đổi dòng nào thì nó đỏ" không có câu trả lời.
@@ -21,37 +26,13 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_TITLE, deriveTitle } from '@/lib/use-title-generator';
 
-const ROOT = path.resolve(__dirname, '..');
-
-/** Đọc source đã normalize CRLF → LF (repo bật `core.autocrlf`). */
-function read(rel: string): string {
-  return fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
-}
-
-const cliSource = read('lib/cli/interactive-agent.ts');
-
-/** Nhánh `if (trimmed.startsWith('/plan') ...)` — nơi duy nhất còn gửi tiền tố. */
-const planBranch = (() => {
-  const start = cliSource.indexOf("if (trimmed.startsWith('/plan')");
-  expect(start, 'không tìm thấy nhánh /plan trong lib/cli/interactive-agent.ts').toBeGreaterThan(-1);
-  const end = cliSource.indexOf('rl.prompt();', start);
-  expect(end, 'nhánh /plan không kết thúc bằng rl.prompt()').toBeGreaterThan(start);
-  return cliSource.slice(start, end);
-})();
-
-/** Chữ trong `[...]` mà nhánh `/plan` thật sự ghép vào tin nhắn người dùng. */
-const livePlanPrefix = planBranch.match(/`\[([^\][\n]*)\]/)?.[1] ?? '';
+/** Mẫu tiền tố /plan từng được CLI ghép vào tin người dùng (xem lịch sử ở trên). */
+const livePlanPrefix = 'Chế độ Lập Kế Hoạch - Plan Mode';
 
 describe('tiền tố hệ thống: bỏ tiền tố thật, giữ link thật', () => {
-  it('tiền tố /plan của CLI là mẫu duy nhất còn được gửi đi', () => {
-    /* ĐỎ nếu emitter đổi nội dung hoặc bỏ ngoặc vuông: `livePlanPrefix` rỗng
-       thì các test dưới im lặng chạy trên chuỗi bịa ra. Không assert đúng
-       câu chữ — chỉ assert nó còn là nhãn tiền tố dạng "Chế độ ...". */
-    expect(livePlanPrefix).toMatch(/^Chế độ .+ - .+$/);
-    // Dấu xuống dòng của lời gọi hàm không quan tâm: nối khoảng trắng lại trước.
-    expect(planBranch.replace(/\s+/g, ' ')).toContain(`agent.streamTurn( \`[${livePlanPrefix}]`);
-  });
-
+  /* Đã bỏ `it` "tiền tố /plan của CLI là mẫu duy nhất còn được gửi đi" (2026-10-15):
+     nó canh emitter trong `lib/cli/interactive-agent.ts`, mà CLI đã bị gỡ. Các
+     `it` còn lại kiểm chính regex đang chạy trong lib/use-title-generator.ts. */
   it('tiền tố thật vẫn bị bỏ, lời người dùng phía sau được giữ nguyên', () => {
     /* ĐỎ nếu PREAMBLE_RE mất `(?=\s|$)`? Không — `]` ở đây theo sau bởi
        khoảng trắng nên vẫn khớp. ĐỎ nếu mất `+`, mất neo `^`, hoặc xoá hẳn

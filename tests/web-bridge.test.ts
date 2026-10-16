@@ -1,5 +1,5 @@
 /**
- * Unit & Integration Tests cho Universal Web Bridge & Terminal CLI Harness.
+ * Unit & Integration Tests cho Universal Web Bridge & Desktop launcher.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -11,7 +11,7 @@ import {
   isLocalRequest,
   getBridgeUserDataDir,
 } from '../lib/bridge/server-bridge';
-import { CliCodingHarness } from '../lib/cli/interactive-agent';
+/* `CliCodingHarness` (lib/cli/interactive-agent) đã bị gỡ cùng CLI headless 2026-10-15. */
 
 describe('Universal Web Bridge (Server Dispatcher)', () => {
   beforeAll(() => {
@@ -149,160 +149,13 @@ describe('Universal Web Bridge (Server Dispatcher)', () => {
   });
 });
 
-describe('CliCodingHarness (Harness Primitives)', () => {
-  const harness = new CliCodingHarness(process.cwd());
-
-  it('lấy đúng workspace root', () => {
-    expect(harness.getWorkspace()).toBe(path.resolve(process.cwd()));
-  });
-
-  it('read đọc chính xác file trong workspace', () => {
-    const res = harness.read('package.json', 1, 10);
-    expect(res.ok).toBe(true);
-    expect(res.output).toContain('vyen');
-  });
-
-  it('read báo lỗi nếu file không tồn tại', () => {
-    const res = harness.read('file-chua-tung-ton-tai-xyz.txt');
-    expect(res.ok).toBe(false);
-    expect(res.error).toContain('không tồn tại');
-  });
-
-  it('bash thực thi lệnh và trả về output', () => {
-    const res = harness.bash('echo hello-pi-cli');
-    expect(res.ok).toBe(true);
-    expect(res.output).toContain('hello-pi-cli');
-  });
-
-  it('write và edit cập nhật file đúng quy trình', () => {
-    const testFile = 'tmp-test-cli-file.txt';
-    const abs = path.join(process.cwd(), testFile);
-    /*
-     * try/finally: trước đây dọn ở CUỐI thân test nên assertion nào fail là file
-     * tạm ở lại repo root — đúng loại "rác" mà lần dọn này nhắm tới.
-     */
-    try {
-      const writeRes = harness.write(testFile, 'line1\nline2\nline3');
-      expect(writeRes.ok).toBe(true);
-
-      const editRes = harness.edit(testFile, 'line2', 'line2-modified');
-      expect(editRes.ok).toBe(true);
-
-      const readRes = harness.read(testFile);
-      expect(readRes.output).toContain('line2-modified');
-    } finally {
-      if (fs.existsSync(abs)) fs.unlinkSync(abs);
-    }
-  });
-
-  it('edit xử lý trơn tru line-endings CRLF (Windows) khi target dùng LF', () => {
-    const testFile = 'tmp-test-crlf-file.txt';
-    const abs = path.join(process.cwd(), testFile);
-    try {
-      // Ghi file với ký tự xuống dòng CRLF chuẩn Windows
-      fs.writeFileSync(abs, 'first line\r\nsecond line\r\nthird line\r\n', 'utf8');
-
-      // Gọi edit với target dùng LF thuần
-      const editRes = harness.edit(testFile, 'first line\nsecond line', 'first line modified\nsecond line modified');
-      expect(editRes.ok).toBe(true);
-
-      const content = fs.readFileSync(abs, 'utf8');
-      expect(content).toContain('first line modified');
-    } finally {
-      if (fs.existsSync(abs)) fs.unlinkSync(abs);
-    }
-  });
-
-  it('find tìm kiếm đúng các file trong workspace', () => {
-    const res = harness.find('package.json');
-    expect(res.ok).toBe(true);
-    expect(res.output).toContain('package.json');
-  });
-
-  it('grep tìm kiếm nội dung trong mã nguồn', () => {
-    const res = harness.grep('CliCodingHarness');
-    expect(res.ok).toBe(true);
-    expect(res.output).toContain('interactive-agent.ts');
-  }, 15_000);
-
-  it('doctor trả về thông số môi trường đầy đủ', () => {
-    const res = harness.doctor();
-    expect(res.ok).toBe(true);
-    expect(res.output).toContain('Node.js');
-    expect(res.output).toContain('Workspace');
-    expect(res.output).toContain('Status:       READY');
-  });
-
-  it('gitStatus trả về kết quả không lỗi', () => {
-    const res = harness.gitStatus();
-    expect(res.ok).toBe(true);
-  });
-
-  it('invokeBridgeChannel vyen:doctor trả về thông số chuẩn', async () => {
-    const doc = (await invokeBridgeChannel('vyen:doctor')) as {
-      ok: boolean;
-      nodeVersion: string;
-      platform: string;
-      workspaceRoot: string;
-      registeredChannels: string[];
-    };
-    expect(doc.ok).toBe(true);
-    expect(doc.nodeVersion).toBe(process.version);
-    expect(doc.registeredChannels).toContain('vyen:doctor');
-    expect(doc.registeredChannels).toContain('vyen:teamwork-artifacts');
-  });
-
-  it('invokeBridgeChannel vyen:teamwork-artifacts trả về cấu trúc artifacts', async () => {
-    const res = (await invokeBridgeChannel('vyen:teamwork-artifacts')) as {
-      ok: boolean;
-      workspaceRoot: string;
-      request: { exists: boolean };
-      plan: { exists: boolean };
-      progress: { exists: boolean };
-    };
-    expect(res.ok).toBe(true);
-    expect(typeof res.workspaceRoot).toBe('string');
-    expect(typeof res.request.exists).toBe('boolean');
-    expect(typeof res.plan.exists).toBe('boolean');
-    expect(typeof res.progress.exists).toBe('boolean');
-  });
-
-  it('invokeBridgeChannel vyen:security-audit trả về báo cáo kiểm toán an ninh Security', async () => {
-    const res = (await invokeBridgeChannel('vyen:security-audit')) as {
-      ok: boolean;
-      report: string;
-      workspaceRoot: string;
-    };
-    expect(res).toBeDefined();
-    expect(typeof res.workspaceRoot).toBe('string');
-    expect(res.report).toContain('Vyen Security & Code Audit');
-    expect(res.report).toContain('Security Score');
-  });
-
-  it('read với lineCount <= 0 được clamp an toàn và không gây lỗi slice âm', () => {
-    const res = harness.read('package.json', 1, -5);
-    expect(res.ok).toBe(true);
-    expect(res.output).toContain('Lines 1-1 of');
-  });
-
-  it('audit thực hiện kiểm toán bảo mật và phát hiện cấu hình an toàn', () => {
-    const res = harness.audit();
-    expect(res.output).toContain('Vyen Security & Code Audit');
-    expect(res.output).toContain('Checked Files');
-  });
-
-  it('init kiểm tra và báo cáo không gian làm việc chuẩn terminal coding agent', () => {
-    const res = harness.init();
-    expect(res.ok).toBe(true);
-    expect(res.output).toContain('PROJECT.md');
-  });
-
-  it('compact báo cáo thông số bộ nhớ context', () => {
-    const res = harness.compact();
-    expect(res.ok).toBe(true);
-    expect(res.output).toContain('Compaction: READY');
-  });
-
+  /*
+ * 2026-10-15: khối `CliCodingHarness (Harness Primitives)` và các lệnh CLI
+ * (`--version / status / diff / read / audit / init / cli`) đã bị xoá cùng
+ * `lib/cli/interactive-agent.ts` + `bin/vyen.ts`. Phần bridge phía trên và test
+ * launcher dưới đây vẫn kiểm những thứ còn sống.
+ */
+describe('Desktop launcher', () => {
   it('scripts/launch-desktop.cjs hỗ trợ cờ --help và thoát 0', () => {
     const { spawnSync } = require('node:child_process');
     const res = spawnSync(process.execPath, [path.join(process.cwd(), 'scripts', 'launch-desktop.cjs'), '--help'], {
@@ -312,54 +165,6 @@ describe('CliCodingHarness (Harness Primitives)', () => {
     expect(res.stdout).toContain('Vyen Fast Desktop Launcher');
     expect(res.stdout).toContain('--port');
   });
-
-  it('vyen CLI subcommands hoạt động chuẩn xác', () => {
-    const { spawnSync } = require('node:child_process');
-    const binPath = path.join(process.cwd(), 'bin', 'vyen.ts');
-
-    // 1. --version
-    const vRes = spawnSync(process.execPath, ['-r', 'tsx', binPath, '--version'], { encoding: 'utf8' });
-    expect(vRes.status).toBe(0);
-    expect(vRes.stdout).toContain('vyen v');
-
-    // 2. status
-    const sRes = spawnSync(process.execPath, ['-r', 'tsx', binPath, 'status'], { encoding: 'utf8' });
-    expect(sRes.status).toBe(0);
-
-    // 3. diff
-    const dRes = spawnSync(process.execPath, ['-r', 'tsx', binPath, 'diff'], { encoding: 'utf8' });
-    expect(dRes.status).toBe(0);
-
-    // 4. read
-    const rRes = spawnSync(process.execPath, ['-r', 'tsx', binPath, 'read', 'package.json', '1', '5'], { encoding: 'utf8' });
-    expect(rRes.status).toBe(0);
-    expect(rRes.stdout).toContain('name');
-
-    // 5. audit
-    const aRes = spawnSync(process.execPath, ['-r', 'tsx', binPath, 'audit'], { encoding: 'utf8' });
-    expect(aRes.status).toBe(0);
-    expect(aRes.stdout).toContain('Vyen Security & Code Audit');
-
-    // 5b. audit --json
-    const aJsonRes = spawnSync(process.execPath, ['-r', 'tsx', binPath, 'audit', '--json'], { encoding: 'utf8' });
-    expect(aJsonRes.status).toBe(0);
-    const parsedReport = JSON.parse(aJsonRes.stdout);
-    expect(parsedReport.score).toBeDefined();
-    expect(parsedReport.summary).toBeDefined();
-
-    // 6. init
-    const iRes = spawnSync(process.execPath, ['-r', 'tsx', binPath, 'init'], { encoding: 'utf8' });
-    expect(iRes.status).toBe(0);
-    expect(iRes.stdout).toContain('PROJECT.md');
-
-    // 7. cli autonomous prompt execution (simulated mode)
-    const cRes = spawnSync(process.execPath, ['-r', 'tsx', binPath, 'cli', 'đọc file package.json'], {
-      encoding: 'utf8',
-      env: { ...process.env, VYEN_MOCK_AGENT: '1' },
-    });
-    expect(cRes.status).toBe(0);
-    expect(cRes.stdout).toContain('read_file');
-  }, 40_000);
 });
 
 

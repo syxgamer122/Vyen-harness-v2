@@ -68,7 +68,6 @@ export const DEFAULT_TOOL_CANDIDATES: ToolCandidate[] = [
   { id: 'plan_create', group: 'plan', description: 'Tạo kế hoạch phân rã công việc', bytes: 450 },
   { id: 'plan_update', group: 'plan', description: 'Cập nhật tiến độ kế hoạch', bytes: 420 },
   { id: 'memory_search', group: 'memory', description: 'Tra cứu ghi nhớ dài hạn', bytes: 390 },
-  { id: 'memory_propose', group: 'memory', description: 'Đề xuất ghi nhớ mới qua reviewer gate', bytes: 440 },
   { id: 'web_search', group: 'web', description: 'Tìm kiếm web tra cứu tài liệu', bytes: 460 },
   { id: 'web_fetch', group: 'web', description: 'Tải nội dung trang web', bytes: 430 },
 ];

@@ -9,9 +9,9 @@ import {
   loadCliSession,
   renameCliSession,
   type CliSessionData,
-} from '@/lib/cli/session-manager';
+} from '@/lib/scheduler/session-manager';
 
-describe('CLI Session Manager (P2-8)', () => {
+describe('Scheduler Session Manager (P2-8)', () => {
   let tmpDir: string;
 
   beforeEach(() => {

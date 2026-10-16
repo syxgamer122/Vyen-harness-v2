@@ -9,6 +9,7 @@
  * 5. Zero-Token Savings Meter.
  */
 
+import { foldText } from '@/lib/search-utils';
 import { EntityContextGraph } from './graph';
 import { TemporalHierarchy } from './temporal';
 import type {
@@ -25,7 +26,16 @@ export const DEFAULT_MAX_TOKENS = 1200;
 export const DEFAULT_MAX_RESULTS = 5;
 
 /**
- * Tokenize string into lowercase alphanumeric words, filtering out common stop words.
+ * Tokenize into lowercase alphanumeric words, filtering out common stop words.
+ *
+ * PHẢI fold dấu tiếng Việt, và đây là lý do: nếu không, câu hỏi gõ không dấu
+ * ("sua loi dang nhap") không bao giờ khớp trace đã lưu có dấu ("sửa lỗi đăng
+ * nhập") — trong khi `chat_recall` đã tránh được đúng lỗi này nhờ cùng hàm
+ * `foldText`. Dùng CHUNG hàm của app thay vì tự chế quy tắc, để hai đường tìm
+ * kiếm không trôi lệch nhau.
+ *
+ * Sau khi fold không còn ký tự Unicode nên regex là `[^a-z0-9]+`, không phải
+ * `\p{L}` (giữ `\p{L}` sẽ cho ra token rỗng hoặc sót ký tự lạ).
  */
 export function tokenizeForBM25(text: string): string[] {
   const STOP_WORDS = new Set([
@@ -34,9 +44,8 @@ export function tokenizeForBM25(text: string): string[] {
     'it', 'as', 'if', 'when', 'than', 'into', 'la', 'va', 'cho', 'voi',
   ]);
 
-  return text
-    .toLowerCase()
-    .split(/[^\p{L}\d_]+/u)
+  return foldText(text)
+    .split(/[^a-z0-9]+/i)
     .filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
 }
 
@@ -195,17 +204,38 @@ export class ZeroMemRetriever {
     candidateEvidences.sort((a, b) => b.score - a.score);
 
     // --- STEP 4: Token Budget Packing ---
+    /*
+     * Trần phải được giữ kể cả evidence ĐẦU TIÊN. Trước đây điều kiện là
+     * `... > tokenBudget && packedEvidences.length > 0` — tức evidence đầu tiên
+     * được phép vượt trần tuỳ ý, nên một trace dài làm `tokensUsed` vượt ngân sách
+     * mà không có tín hiệu nào báo. Nay: chừa phần đầu lưu ý, cắt cứng phần text
+     * cho vừa, và bỏ hẳn nếu cắt nữa vẫn không vừa.
+     */
     const packedEvidences: ZeroMemEvidence[] = [];
     let estimatedTokensUsed = 0;
-    const approxTokens = (str: string) => Math.ceil(str.length / 3.8);
+    const CHARS_PER_TOKEN = 3.8;
+    const EVIDENCE_OVERHEAD_TOKENS = 20; // dòng tiêu đề (id/session/score)
+    const approxTokens = (str: string) => Math.ceil(str.length / CHARS_PER_TOKEN);
 
     for (const cand of candidateEvidences) {
       if (packedEvidences.length >= maxResults) break;
-      const tokens = approxTokens(cand.text) + 20; // 20 tokens overhead for headers
-      if (estimatedTokensUsed + tokens > tokenBudget && packedEvidences.length > 0) {
-        continue; // Skip if exceeds budget
+
+      const remaining = tokenBudget - estimatedTokensUsed;
+      const textRoomTokens = remaining - EVIDENCE_OVERHEAD_TOKENS;
+      if (textRoomTokens <= 0) break; // hết chỗ kể cả phần đầu lưu ý
+
+      let text = cand.text;
+      let tokens = approxTokens(text) + EVIDENCE_OVERHEAD_TOKENS;
+      if (tokens > remaining) {
+        // Cắt cứng theo ngân sách còn lại. `Math.max(0, …)` bảo đảm không âm
+        // khi `textRoomTokens` rất nhỏ.
+        const maxChars = Math.max(0, Math.floor(textRoomTokens * CHARS_PER_TOKEN));
+        text = text.slice(0, maxChars);
+        tokens = approxTokens(text) + EVIDENCE_OVERHEAD_TOKENS;
+        if (tokens > remaining) break; // cắt nữa vẫn không vừa → bỏ
       }
-      packedEvidences.push(cand);
+
+      packedEvidences.push(text === cand.text ? cand : { ...cand, text });
       estimatedTokensUsed += tokens;
     }
 

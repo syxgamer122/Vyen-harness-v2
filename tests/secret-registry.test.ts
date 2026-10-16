@@ -31,11 +31,9 @@ import { serializeToolResult } from '@/lib/tool-limits';
 import { buildAgentTools, type MemoryItem } from '@/lib/agent-tools';
 import { __clearAllToolCallBudgets } from '@/lib/tool-call-budget';
 import { SAST_RULES } from '@/lib/security-sast';
-import {
-  AutonomousCliAgent,
-  CliCodingHarness,
-  withSecretRedaction,
-} from '@/lib/cli/interactive-agent';
+/* Import `AutonomousCliAgent`/`CliCodingHarness`/`withSecretRedaction` từ
+ * `lib/cli/interactive-agent` đã bị gỡ cùng CLI headless (2026-10-15) — xem
+ * khối "CLI harness" bị xoá ở cuối file. */
 
 const GHP = `ghp_${'a'.repeat(36)}`;
 const FINE_PAT = `github_pat_${'b'.repeat(60)}`;
@@ -336,67 +334,10 @@ describe('chi phí che phải TUYẾN TÍNH trên kết quả tool dài (chốt 
   });
 });
 
-describe('hợp nhất vào đường đi THẬT của kết quả tool — CLI harness', () => {
-  const REGISTERED = 'vyen-cli-registered-token-0123456789ab';
-
-  it('withSecretRedaction: bọc MỌI execute, tool không có execute giữ nguyên', async () => {
-    getDefaultSecretRegistry().register(REGISTERED, 'test-secret');
-    const tools = {
-      read_file: { execute: async () => ({ ok: true, output: `OPENAI_API_KEY=${REGISTERED}` }) },
-      security_audit: { execute: async () => `github: ${GHP}` },
-      tools_list: { description: 'khai báo thuần, không có execute' },
-    };
-
-    const wrapped = withSecretRedaction(tools);
-    expect(wrapped).toBe(tools); // mutate tại chỗ → kiểu của chỗ gọi không đổi
-
-    const read = await tools.read_file.execute();
-    expect(read.output).not.toContain(REGISTERED);
-    expect(read.output).toContain(REDACT_PLACEHOLDER);
-
-    expect(await tools.security_audit.execute()).toBe(`github: ${REDACT_PLACEHOLDER}`);
-    expect(tools.tools_list).toEqual({ description: 'khai báo thuần, không có execute' });
-  });
-
-  it('CLI: key gõ bằng /key được đăng ký (setApiKey) nhưng vẫn dùng được cho model', () => {
-    const agent = new AutonomousCliAgent({ workspaceRoot: process.cwd(), skipEnvLoad: true });
-    const key = 'vyen-cli-0123456789abcdefghijklmnop';
-    expect(getDefaultSecretRegistry().redact(key).text).toBe(key); // chưa đăng ký
-
-    agent.setApiKey(key);
-
-    expect(agent.getConfig().hasKey).toBe(true);
-    expect(getDefaultSecretRegistry().redact(key).text).toBe(REDACT_PLACEHOLDER);
-  });
-
-  it('CLI simulated: output tool bị che TRƯỚC khi vào history (file session)', async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'vyen-cli-redact-'));
-    try {
-      writeFileSync(path.join(dir, '.env.local'), `OPENAI_API_KEY=${REGISTERED}\n`);
-      getDefaultSecretRegistry().register(REGISTERED, 'test-secret');
-      const agent = new AutonomousCliAgent({
-        workspaceRoot: dir,
-        skipEnvLoad: true, // KHÔNG nạp .env.local thật của repo vào process.env
-        mockMode: true, // chạy được không cần mạng/API key
-        harness: new CliCodingHarness(dir),
-      });
-
-      const res = await agent.streamTurn('read .env.local', { onToken: () => {} });
-
-      expect(res.text).not.toContain(REGISTERED);
-      expect(res.text).toContain(REDACT_PLACEHOLDER);
-
-      /* history bị saveSession() ghi xuống .vyen/sessions/<id>.json */
-      const history = JSON.stringify(agent.getHistory());
-      expect(history).not.toContain(REGISTERED);
-      expect(history).toContain(REDACT_PLACEHOLDER);
-
-      /* Chủ ý: che ở BIÊN GIỚI vào model, KHÔNG che ở nguồn — harness vẫn trả
-         nội dung thật để lập trình viên đọc/grep ngay tại terminal. */
-      expect(agent.getHarness().read('.env.local', 1, 5).output).toContain(REGISTERED);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-});
+/*
+ * KHỐI "CLI harness" đã bị xoá (2026-10-15) cùng `lib/cli/interactive-agent.ts`:
+ * `withSecretRedaction`, `AutonomousCliAgent`, `CliCodingHarness` chỉ tồn tại ở
+ * CLI headless. Phần lõi của file (registry, pattern, SAST, tool budget) vẫn
+ * được kiểm ở trên.
+ */
 

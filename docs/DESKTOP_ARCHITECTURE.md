@@ -10,7 +10,6 @@
 
 | Đường | Lệnh | Entry point | Đặc điểm |
 |---|---|---|---|
-| **Terminal CLI** | `npm run cli` / `npm run vyen` | `bin/vyen.ts` | Không GUI, chạy headless; `npm run teamwork` cho quy trình multi-agent |
 | **Fast Desktop** | `npm run app:fast` (= `npm run app` = `npm run desktop`) | `scripts/launch-desktop.cjs` | Cửa sổ app không URL bar, không tab; tái dùng Edge/Chrome/WebView2 có sẵn |
 | **Universal Web** | `npm run dev` → mở `http://localhost:3000` | `app/api/bridge` + `lib/bridge/` | Full tool (fs/shell/git/MCP) ngay trên trình duyệt thường |
 

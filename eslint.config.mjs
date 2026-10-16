@@ -12,9 +12,9 @@ const eslintConfig = [
      * react-hooks/rules-of-hooks trong bundle đó làm hỏng `npm run lint`. Không
      * sửa file bên trong: đó là bundle của bên thứ ba, không phải mã dự án.
      *
-     * `.teamwork/`: state runtime của teamwork engine, trong đó có các bản sao
-     * worktree của chính repo này. Lint lại bản sao là vô nghĩa và nhân báo động
-     * lên với số lần mỗi lần engine chạy.
+     * `.teamwork/`: state runtime của teamwork engine — engine đã bị gỡ
+     * (2026-10-15) nhưng bản sao worktree cũ còn nằm trên máy vài người; giữ
+     * ignore để chúng không lọt vào lần lint kế tiếp.
      */
     ignores: [
       'node_modules/**',

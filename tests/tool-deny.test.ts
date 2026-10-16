@@ -24,8 +24,11 @@ import path from 'node:path';
 import {
   ALL_TOOL_CATEGORIES,
   isToolDenied,
+  TOOL_CATALOG,
   TOOL_CATEGORY_MAP,
 } from '@/lib/tool-catalog';
+import { CLIENT_TOOL_NAMES } from '@/lib/agent-tools';
+import { CODE_MODE_TOOL_NAME } from '@/lib/mcp/code-mode';
 import type { PermissionOverride, ToolPermissions } from '@/lib/store';
 
 /** Quyền đồng loạt MỘT giá trị cho cả 8 nhóm (builder cho ma trận). */
@@ -139,5 +142,45 @@ describe('rawHandleClientToolCall - cổng deny của đường thực thi clien
     const chatInterface = fs.readFileSync(path.resolve(__dirname, '../components/chat-interface.tsx'), 'utf8');
     expect(chatInterface).not.toMatch(/executeClientToolGate/);
     expect(chatInterface).not.toMatch(/new ToolRunner\(/);
+  });
+});
+
+/**
+ * Bug 15/10 — handler `code_patch` (port sarsed-code) truyền tên tool MA
+ * `'apply_patch'` cho `autoApproveDiff` và audit log. Hậu quả: đặt `code_patch`
+ * = "tự duyệt" trong bảng phân quyền không có tác dụng (`shouldAutoApprove`
+ * tra theo tên, không nhận ra tên ma), và nhật ký ghi ra tool không tồn tại.
+ *
+ * Test ở đây khoá theo BẤT BIẾN chứ không khoá theo câu chữ: mọi tên tool
+ * mà file này truyền đi phải là tool có thật. Thêm tool mới thì test vẫn xanh;
+ * truyền nhầm tên là test đỏ, bất kể tên đó gọi tới đâu.
+ */
+describe('tên tool truyền cho autoApproveDiff / audit log phải là tool có thật', () => {
+  const code = fs.readFileSync(path.resolve(__dirname, '../react/use-chat-orchestration.ts'), 'utf8');
+  /*
+   * "Tool có thật" = đăng ký trong CLIENT_TOOL_DEFS, hoặc có mặt trong
+   * TOOL_CATALOG, hoặc là tool đặc biệt tự khai tên. `run_code` (Code Mode) thuộc
+   * loại thứ ba: cố ý KHÔNG có trong catalog, nó gắn quyền qua nhóm `shell`
+   * (`categoryOf` ở lib/tool-permissions.ts:90) — nên phải lấy tên từ chính
+   * CODE_MODE_TOOL_NAME, không đoán mò.
+   */
+  const known = new Set<string>([
+    ...CLIENT_TOOL_NAMES,
+    ...TOOL_CATALOG.map((t) => t.name),
+    CODE_MODE_TOOL_NAME,
+  ]);
+
+  it('mọi toolName: \'...\' đều là tool có thật', () => {
+    const literals = [...code.matchAll(/toolName: '([^']+)'/g)].map((m) => m[1]);
+    expect(literals.length, 'không tìm thấy toolName nào để canh').toBeGreaterThan(0);
+    const unknown = literals.filter((name) => !known.has(name));
+    expect(unknown, 'autoApproveDiff nhận tên tool không có thật').toEqual([]);
+  });
+
+  it('mọi tool: \'...\' ghi vào nhật ký kiểm toán đều là tool có thật', () => {
+    const literals = [...code.matchAll(/\btool: '([^']+)'/g)].map((m) => m[1]);
+    expect(literals.length, 'không tìm thấy tool nào để canh').toBeGreaterThan(0);
+    const unknown = literals.filter((name) => !known.has(name));
+    expect(unknown, 'audit log ghi tên tool không có thật').toEqual([]);
   });
 });

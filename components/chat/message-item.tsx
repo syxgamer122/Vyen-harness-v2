@@ -11,7 +11,6 @@ import { sanitizeContent, getFinishInfo } from '@/lib/chat-tree-persistence';
 import { stripEmulatedToolMarkup } from '@/lib/text-tool-guard';
 import { ToolTrace, buildToolTrace, displayText, type TimelineSegment } from '@/components/chat/tool-trace';
 import { MessageUsage } from '@/components/chat/message-usage';
-import { OrchestratorBadge, getOrchestratorAdoptedAnnotation } from '@/components/chat/orchestrator-badge';
 import { EvidenceBadge } from '@/components/evidence-badge';
 import { getSubagentAnnotations } from '@/components/subagent-card';
 import { extractMessageUsage, formatMessageUsage } from '@/lib/message-usage';
@@ -517,7 +516,6 @@ export const MessageItem = memo(
       !hasReasoning &&
       !getFinishInfo(m).truncated &&
       !(usageStats !== null && formatMessageUsage(usageStats) !== '') &&
-      !getOrchestratorAdoptedAnnotation(annotations) &&
       !hasEvidence &&
       !failedTurn;
     if (rowIsEmpty) return null;
@@ -578,13 +576,6 @@ export const MessageItem = memo(
               ))}
             </div>
           )}
-
-          {(() => {
-            const adopted = getOrchestratorAdoptedAnnotation(
-              (m as any).annotations as unknown[] | undefined,
-            );
-            return adopted ? <OrchestratorBadge payload={adopted} /> : null;
-          })()}
 
           {/*
            * TRẢ LỜI LÀ NỘI DUNG BIÊN TẬP, KHÔNG PHẢI BONG BÓNG CHAT.

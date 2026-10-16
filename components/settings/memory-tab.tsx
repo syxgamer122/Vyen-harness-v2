@@ -21,6 +21,7 @@
 
 import { MemoriesSection } from '@/components/settings/memories-section';
 import { AgentMemorySection } from '@/components/settings-agent-memory';
+import { ZeroMemSection } from '@/components/settings/zeromem-section';
 
 export function MemoryTab() {
   return (
@@ -47,7 +48,9 @@ export function MemoryTab() {
           </li>
         </ul>
         <p className="mt-1.5 text-meta leading-relaxed text-tertiary">
-          Cả hai đều được nạp vào ngữ cảnh khi liên quan tới lượt đang chạy.
+          Cả hai đều được nạp vào ngữ cảnh khi liên quan tới lượt đang chạy. Mục
+          thứ ba bên dưới (<strong className="font-semibold text-primary">ghi nhớ hoạt động</strong>)
+          khác cả hai: không ai viết và không cần duyệt.
         </p>
       </div>
 
@@ -56,6 +59,8 @@ export function MemoryTab() {
       <div className="settings-card settings-card-body">
         <AgentMemorySection />
       </div>
+
+      <ZeroMemSection />
     </>
   );
 }

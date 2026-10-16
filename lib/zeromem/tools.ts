@@ -24,6 +24,18 @@ export function getZeroMemStore(workspaceKey: string = 'default'): ZeroMemStore 
   return store;
 }
 
+/**
+ * Xoá sạch bộ nhớ ĐANG NẠM trong RAM (mọi workspace).
+ *
+ * Vì sao cần: kho có hai tầng — singleton trong RAM và Dexie. Xoá Dexie mà
+ * không đụng singleton thì truy hồi vẫn thấy trace cũ trong RAM ⇒ người dùng
+ * bấm "Xoá kho" xong vẫn có bộ nhớ cũ được chèn vào prompt. Đây là lỗi thật,
+ * không phải phòng xa.
+ */
+export function clearZeroMemStores(): void {
+  WORKSPACE_STORES.clear();
+}
+
 export const zeromemQuerySchema = z.object({
   query: z.string().describe('Search query, symbol name, error text, or task objective'),
   max_results: z.number().int().min(1).max(20).optional().describe('Maximum evidences to return (default 5)'),

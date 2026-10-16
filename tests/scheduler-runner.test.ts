@@ -12,7 +12,7 @@ import {
   tickScheduler,
 } from '@/lib/scheduler/runner';
 import type { ScheduleRecord } from '@/lib/db';
-import { loadCliSession } from '@/lib/cli/session-manager';
+import { loadCliSession } from '@/lib/scheduler/session-manager';
 
 describe('Scheduler Runner Engine (P2-9)', { timeout: 15000 }, () => {
   let tmpDir: string;

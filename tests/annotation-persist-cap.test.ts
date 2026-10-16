@@ -65,7 +65,6 @@ const NON_TOOL_KINDS: Ann[] = [
   { requestId: 'r1', attempt: 2, totalAttempts: 5, key: 'openai/gpt-x', model: 'gpt-x' },
   { requestId: 'r1', hb: 1730000000000 },
   { requestId: 'r1', error: 'UPSTREAM_POOL_EXHAUSTED' },
-  { requestId: 'r1', orchestratorAdopted: { goal: 'sửa lỗi đăng nhập', adoptedAt: 1730000000000 } },
   { requestId: 'r1', evidenceLevel: 'verified' },
   { requestId: 'r1', type: 'finish', truncated: false, message: 'done' },
 ];

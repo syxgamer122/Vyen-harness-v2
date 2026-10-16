@@ -3,7 +3,6 @@ import {
   proposeMemory,
   reviewMemory,
   buildRecallPack,
-  formatRecallBanner,
   progressMemoryAge,
   formatRecalledMemoriesBlock,
 } from '@/lib/memory/recall';
@@ -275,22 +274,6 @@ describe('Long-term Memory with Reviewer Gate & Recall Pack', () => {
       expect(block).toContain('BỘ NHỚ DÀI HẠN ĐÃ DUYỆT');
       expect(block).toContain('Tuân thủ quy ước TypeScript nghiêm ngặt');
       expect(block).not.toContain('[LESSON:RULE]');
-    });
-
-    it('formats recall banner correctly', () => {
-      const bannerWithItems = formatRecallBanner({
-        items: [{ id: '1', text: 'test', why: 'why', score: 10 }],
-        budget: { limitTokens: 100, usedTokens: 10, droppedIds: [] },
-        conflicts: [],
-      });
-      expect(bannerWithItems).toBe('🧠 Đã nhớ 1 ghi chú');
-
-      const emptyBanner = formatRecallBanner({
-        items: [],
-        budget: { limitTokens: 100, usedTokens: 0, droppedIds: [] },
-        conflicts: [],
-      });
-      expect(emptyBanner).toBeNull();
     });
   });
 });

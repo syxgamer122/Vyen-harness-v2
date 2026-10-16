@@ -3,8 +3,9 @@
  *
  * Lỗi gốc: handler /boost trong react/use-chat-orchestration.ts chỉ chèn hai
  * chuỗi vào tin nhắn người dùng, không tạo worktree nào (grep toàn repo: không
- * có chỗ nào gọi `git worktree` từ đường chat, chỉ CLI npm run teamwork gọi
- * được lib/teamwork/worktree.ts). Người dùng gõ `/boost thêm một file test.txt`
+ * có chỗ nào gọi `git worktree` từ đường chat — và sau 2026-10-15 thì cũng
+ * không còn đường headless nào tạo worktree nữa). Người dùng gõ
+ * `/boost thêm một file test.txt`
  * được báo là đang chạy trong "Git Worktree cô lập", tin vào đó, còn agent thì
  * ghi thẳng vào thư mục gốc. Ba bề mặt cùng nói dối nên phải khoá cả ba.
  *

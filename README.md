@@ -17,7 +17,7 @@
 - **Tìm kiếm web**: bật nút 🌐 trong composer — lượt gửi kế tiếp tự tra cứu các engine công khai không cần key (DuckDuckGo HTML → DuckDuckGo Lite → Yahoo → DDG Instant Answer; lượt tìm tiếp tự đổi engine khi bị chặn) rồi đọc nguyên văn tối đa 2 trang, chèn vào ngữ cảnh kèm yêu cầu trích dẫn link. Dán URL trực tiếp trong tin nhắn sẽ được ưu tiên đọc nguyên trang. Proxy qua `/api/web` có chắn SSRF từng hop redirect.
 - **Menu lệnh "/"**: gõ `/` trong ô nhập để chèn lệnh hệ thống (`/plan`, `/mode`, `/summarize`, `/recipe`, `/skills`, `/memory`, `/tools`, `/cost`) hoặc **recipe** (icon chef-hat) — chọn recipe sẽ mở panel Recipes thay vì chèn text. Lọc không phân biệt dấu. Quản lý lệnh tuỳ biến trong Settings → Mở rộng.
   > Thư viện prompt mẫu của bản web chat cũ (5 mẫu "Dịch Trung - Việt", "Sửa lỗi chính tả"... cùng mục "Skills cũ" trong Cài đặt) **đã được gỡ** ở schema v18 — đó là rác của một trợ lý chat đa dụng, không thuộc coding agent.
-- **Recipes**: workflow đóng gói tái sử dụng — tham số, tool policy, model settings, kiểm chứng shell + retry, structured output JSON, sub-recipe. Lưu trong Dexie hoặc file `.vyen/recipes/*.yaml` trong workspace; chia sẻ qua liên kết `?recipe=` (chỉ mở preview, không tự chạy). Chạy headless: `npx tsx bin/vyen.ts run --recipe fix-tests.yaml --params path=src --output json` — exit code ≠ 0 khi checks còn fail (dùng CI được).
+- **Recipes**: workflow đóng gói tái sử dụng — tham số, tool policy, model settings, kiểm chứng shell + retry, structured output JSON, sub-recipe. Lưu trong Dexie hoặc file `.vyen/recipes/*.yaml` trong workspace; chia sẻ qua liên kết `?recipe=` (chỉ mở preview, không tự chạy). Recipe chạy nền theo lịch cron (mục Scheduler bên dưới); lệnh CLI `vyen run --recipe` đã bị gỡ cùng CLI headless.
 - **Skills (SKILL.md)**: kỹ năng dạng file trong `.vyen/skills/` của workspace và `~/.vyen/skills/` (desktop). Agent chỉ thấy bảng chỉ mục (tên + mô tả); nội dung nạp khi agent gọi `skill_load` — tiết kiệm token. Quản lý + tạo mới trong Settings → Skills.
 - **`.vyenhints`**: ngữ cảnh dự án nạp tự động vào system prompt (fallback `AGENTS.md`, trần 8.000 ký tự), chip "hints loaded" trên UI bấm xem nguyên văn.
 - **Bộ nhớ có cấu trúc**: `remember_memory` / `retrieve_memories` / `remove_memory_category` / `remove_specific_memory` — fact dài hạn theo category + tags + scope local/global (tối đa 2.000 ký tự/entry). Chỉ inject chỉ mục vào prompt (trần 4.000 ký tự); mirror ra `.vyen/memory/<category>.md` + `~/.vyen/memory/` để đọc/sửa tay; quản lý trong Settings → Ghi nhớ.
@@ -34,7 +34,7 @@ Vyen đọc tự do nhưng ghi có kỷ luật: mọi thao tác ghi file / chạ
 
 - **Kết nối workspace**: bấm 📁 trên trình duyệt (File System Access API — Chrome/Edge) hoặc mở thư mục trong bản desktop/CLI. Agent dùng bộ tool `fs_list` / `fs_read` / `fs_search` / `fs_edit` / `fs_write` chạy ngay trên máy bạn — server không bao giờ chạm vào file.
 - **Đọc thông minh**: `fs_read` trả tối đa 24.000 ký tự, đọc tiếp bằng `start_line`/`line_count`; `fs_search` tìm chuỗi/regex toàn workspace (bỏ qua node_modules/.git/dist/.next...) trả tối đa 30 dòng kèm `file:dòng`. Ảnh trong workspace (.png/.jpg/.webp/.heic/.heif) được mô tả bằng model vision của Nhà cung cấp đang bật (qua `/api/vision` — BYOK như mọi route LLM, chọn model trong Cài đặt → Nhà cung cấp) — agent "nhìn thấy" screenshot/diagram thay vì nhận bytes rác.
-- **Sửa có kỷ luật**: `fs_edit` dùng khối SEARCH/REPLACE phải khớp nguyên văn và duy nhất, **bắt buộc đọc file trước khi sửa** (tool từ chối nếu chưa đọc); `fs_write` bị chặn ghi đè cả file >200 dòng — buộc sửa cục bộ. Mọi ghi file luôn qua **modal diff phê duyệt**.
+- **Sửa có kỷ luật**: `fs_edit` dùng khối SEARCH/REPLACE phải khớp nguyên văn và duy nhất, **bắt buộc đọc file trước khi sửa**; `fs_write` bị chặn ghi đè cả file >200 dòng — buộc sửa cục bộ. **Có hai đường ghi: `fs_edit`/`fs_write` và `code_patch`** (vá nhiều khối nguyên tử, nén token) — cả hai **dùng chung một bộ luật**: cùng modal diff phê duyệt, cùng staging sandbox, cùng bảng phân quyền per-tool, và cùng bị chặn trong Plan Mode.
 
 ### Duyệt & tự động hóa
 
@@ -91,10 +91,8 @@ Hệ thống Cài đặt được tổ chức lại theo 6 nhóm chức năng tr
 ### Session Management & ChatRecall
 
 - **Gắn phiên với thư mục làm việc**: Tự động liên kết `workspacePath` vào metadata phiên chat (`db.chats`). Khi mở lại phiên cũ từ Sidebar hoặc URL (`/?chatId=...`), giao diện hiển thị banner thông minh đề nghị kết nối lại đúng thư mục dự án tương ứng.
-- **Đổi tên linh hoạt (Rename)**: Đổi tên phiên trực tiếp trên Sidebar (hỗ trợ double-click để sửa inline hoặc chọn qua menu hành động), và trong giao diện CLI qua lệnh slash `/rename <tên mới>`.
-- **Tiếp tục phiên làm việc (Resume)**:
-  - **UI**: Mỗi phiên trong Sidebar có nút "Tiếp tục (Resume)" và menu "Mở cửa sổ mới" tạo luồng làm việc độc lập.
-  - **CLI**: Tiếp tục phiên gần nhất qua `npm run cli -- session -r` hoặc theo tên/ID qua `npm run cli -- session -r --name <tên>`. Tự động lưu tiến trình sau mỗi lượt hội thoại vào `.vyen/sessions/` (hoặc `~/.vyen/sessions/`).
+- **Đổi tên linh hoạt (Rename)**: Đổi tên phiên trực tiếp trên Sidebar (hỗ trợ double-click để sửa inline hoặc chọn qua menu hành động).
+- **Tiếp tục phiên làm việc (Resume)**: Mỗi phiên trong Sidebar có nút "Tiếp tục (Resume)" và menu "Mở cửa sổ mới" tạo luồng làm việc độc lập. Lượt chạy nền của Scheduler lưu tiến trình vào `.vyen/sessions/` (hoặc `~/.vyen/sessions/`).
 - **Tìm kiếm toàn cục `chat_recall(query, limit)`**: Công cụ client cho phép mô hình AI tra cứu toàn bộ lịch sử các phiên thảo luận trong Dexie. Sử dụng bộ phân tích từ khóa tiếng Việt không dấu/có dấu (foldText) để trích xuất ngữ cảnh liên quan và trả về đoạn snippet phù hợp nhất (ví dụ: "tìm hội thoại tuần trước về React hooks").
 
 ### Scheduler: Chạy Recipe Theo Lịch Cron
@@ -156,7 +154,6 @@ Hệ thống Cài đặt được tổ chức lại theo 6 nhóm chức năng tr
 
 - **Subagent delegate**: agent chính giao task độc lập cho subagent chạy với context riêng (không thấy lịch sử chat), không thể đệ quy (subagent không có `delegate`), giới hạn mặc định 10 turns (tối đa 25). Subagent vẫn dùng được tool trên máy bạn (fs/shell/git/MCP) nhờ relay: server phát annotation xuống renderer, renderer thực thi rồi POST kết quả về `/api/chat/subagent-relay`. Hoạt động cả đường native function-calling lẫn emulated.
 - **Sub-recipes**: session chạy recipe có `sub_recipes` thì mỗi sub-recipe trở thành một tool `subrecipe__<name>` (schema sinh từ parameters, giá trị gắn cứng không đè được) + tool `subrecipe__batch` chạy nhiều cái **song song cap 3** (kết quả JSON từng lane hiển thị card subagent, Stop hủy được cả lô). `return_mode`: `summary` (mặc định, ≤ 2.000 ký tự) hoặc `full`. Sub-recipe là leaf worker — không delegate, không lồng sub-recipe (chống đệ quy).
-- **Nhãn nguồn orchestrator (còn lại sau khi gỡ sweep)**: `OrchestratorBadge` vẫn render khi message có annotation `orchestratorAdopted` (đọc qua `getOrchestratorAdoptedAnnotation`). Panel sweep, route `/api/orchestrate` và bộ engine/grid/metrics của orchestrator **đã được gỡ**. <!-- docs-check:ignore --> — hiện không còn producer nào ghi annotation này, phần còn sống của `lib/orchestrator/` chỉ là `scheduler.ts` (pool giới hạn đồng thời).
 - **Plan & checklist**: task lớn được phân rã bằng `plan_create`/`plan_update`; UI hiện checklist tiến độ (Chờ/Đang làm/Xong/Lỗi/Bỏ qua) kèm progress bar. **Plan Mode** khoá agent ở chế độ khảo sát — chỉ đọc/liệt kê/tìm và hỏi làm rõ, tool ghi bị vô hiệu cho tới khi bạn chuyển sang Act.
 - **Self-improvement lessons**: agent tự lưu bài học sau khi sửa bug khó / phát hiện pattern hay bằng `lesson_save` (3 loại: rule / pattern / gotcha, tối đa 400 ký tự); các bài học được inject vào system prompt của các phiên sau.
 
@@ -196,31 +193,20 @@ npm run typecheck  # tsc --noEmit
 npm run app        # mặc định: mở cửa sổ app Edge/Chrome --app vào Next.js local
 npm run app:fast   # alias của app — đường mở nhanh, kết nối lại server đang chạy nếu có
 npm run desktop    # alias của app
-npm run cli        # CLI: npx tsx bin/vyen.ts cli
-npm run teamwork   # Teamwork multi-agent engine (headless): npx tsx bin/teamwork.ts
 # Desktop tự chủ: chỉ cần cấu hình Nhà cung cấp trong app — không cần .env.local
 ```
 
 ## Biến môi trường (`.env.local`)
 
-Bảng dưới là **các biến mà code thật sự đọc** — kiểm chứng bằng `npm run docs:check`. Không biến nào bắt buộc: bản desktop/CLI tự chủ sau khi cấu hình Nhà cung cấp trong app.
+Bảng dưới là **các biến mà code thật sự đọc** — kiểm chứng bằng `npm run docs:check`. Không biến nào bắt buộc: bản desktop tự chủ sau khi cấu hình Nhà cung cấp trong app.
 
-**Gateway & CLI headless**
+**Model & nén ngữ cảnh**
 
 | Biến | Mô tả |
 |---|---|
-| `OPENAI_API_KEY` | Key gateway kiểu OpenAI cho CLI headless (đầu chuỗi dự phòng trong `lib/cli/interactive-agent.ts`); người dùng có provider riêng trong Cài đặt thì không cần |
-| `ANTHROPIC_API_KEY` | Key dự phòng kế tiếp trong chuỗi của CLI |
-| `OPENROUTER_API_KEY` | Như trên, đồng thời tự chọn `https://openrouter.ai/api/v1` làm baseUrl khi chưa đặt `VYEN_BASE_URL` |
-| `GEMINI_API_KEY` / `GROQ_API_KEY` / `DEEPSEEK_API_KEY` | Key dự phòng của CLI; mỗi key tự gắn baseUrl của nhà cung cấp đó |
-| `VYEN_API_KEY` | Key chung của Vyen, đứng cuối chuỗi dự phòng |
-| `VYEN_BASE_URL` | Base URL tường minh cho CLI (ưu tiên cao nhất) |
-| `VYEN_MODEL` | Ép model cho CLI |
-| `VYEN_MOCK_AGENT` | `1` = chạy agent giả, không gọi mạng |
-| `MODEL_ALIAS_MAP` | JSON map tên model nội bộ → tên thật trên gateway, không cần deploy lại |
-
-| `COMPACT_MODEL_CHAIN` | Tương tự, cho `/api/compact` |
-| `CHAT_DEBUG_ERRORS` | `true` để kèm body lỗi upstream vào message |
+| `MODEL_ALIAS_MAP` | JSON map tên model nội bộ → tên thật trên gateway, không cần deploy lại (`lib/models.ts`) |
+| `COMPACT_MODEL_CHAIN` | Chuỗi model thử lần lượt cho `/api/compact` |
+| `CHAT_DEBUG_ERRORS` | `true` để kèm body lỗi upstream vào message
 | `CHAT_STREAM_BUDGET_MS` | Ngân sách stream của `/api/chat`, mặc định `270000` (4,5 phút) |
 
 **Tìm kiếm web** — không còn biến cấu hình. Engine cần API key đã gỡ (BYOK 100%),
@@ -275,7 +261,6 @@ app/api/bridge   — cầu nối desktop: endpoint local-only + token, chuyển 
                   fs/shell/git/MCP xuống Node bridge server của launcher
 scripts/launch-desktop.cjs — launcher mặc định: mở cửa sổ Edge/Chrome --app
                   vào Next.js local (tự start dev server nếu chưa chạy)
-bin/vyen.ts       — CLI Vyen (`npm run cli` / `npm run vyen`)
 
 lib/             — logic agent thuần, test được trong node:
                   agent-tools (server + client tool defs), emulated-agent,

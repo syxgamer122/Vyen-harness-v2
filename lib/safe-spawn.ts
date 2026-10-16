@@ -3,8 +3,8 @@
  *
  * ## Vì sao có file này
  *
- * Ba executor nội bộ (sandbox của `lib/teamwork/`, permission broker, CLI serve)
- * từng gọi `spawn(command, { shell: true })`. Với `shell: true`, chuỗi lệnh được
+ * Các executor nội bộ từng gọi `spawn(command, { shell: true })`. Với
+ * `shell: true`, chuỗi lệnh được
  * trả về cho `/bin/sh -c` (hoặc `cmd.exe /c`) — tức mọi metacharacter, phép
  * nối lệnh, redirect và `$(...)` đều sống lại, đúng thứ shell-policy của agent
  * cấm ở đường chính.

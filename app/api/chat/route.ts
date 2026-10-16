@@ -36,7 +36,6 @@ import {
   ROUTER_DEFAULT_TOP_K,
 } from '@/lib/mcp/tool-router';
 import { RUN_CODE_DEF } from '@/lib/mcp/code-mode';
-import { formatSkillsBlock } from '@/lib/skills';
 import { formatWebContextBlock, type WebContextPayload } from '@/lib/web-context';
 import { filterSupportedModels, markModelUnsupported } from '@/lib/model-negative-cache';
 import { markModelFailure, decayModelFailure, isModelLockedOut } from '@/lib/model-lockout';
@@ -81,7 +80,7 @@ import { formatRecalledMemoriesBlock } from '@/lib/memory/recall';
  * `delegate` nằm trong set vì subagent CÓ tool ghi file (qua relay renderer) —
  * cho phép delegate là mở cửa write lậu khỏi plan mode.
  */
-const PLAN_MODE_WRITE_TOOLS = new Set(['fs_write', 'fs_edit', 'delegate']);
+const PLAN_MODE_WRITE_TOOLS = new Set(['fs_write', 'fs_edit', 'code_patch', 'delegate']);
 
 /**
  * Set rỗng dùng chung cho "router không loại tool nào" — tránh cấp phát Set
@@ -93,6 +92,7 @@ import { nonStreamingFetch } from '@/lib/non-streaming-fetch';
 import { looksLikePseudoError, extractPseudoErrorMessage } from '@/lib/pseudo-error-response';
 import { resetToolCallBudget } from '@/lib/tool-call-budget';
 import { judgeInjection } from '@/lib/injection-guard';
+import { wrapUntrustedData } from '@/lib/taint-tracker';
 import { bridgeImagesInMessages, downgradeImagesToPlaceholders, shouldBridgeImages, type BridgeableMessage } from '@/lib/vision-bridge';
 import { ACTIVE_MODEL_BODY_FIELD } from '@/lib/aux-llm-chain';
 import { checkSameOrigin } from '@/lib/security';
@@ -763,19 +763,10 @@ const BodySchema = z.object({
   /* Compaction: tóm tắt phần cũ + ranh giới "tin cuối thuộc phần đã nén". */
   contextSummary: z.string().max(16_000).optional(),
   compactBoundaryId: z.string().max(128).optional(),
-  /* Skills kích hoạt: client matcher chọn tối đa 2 skill khớp tin nhắn,
-     body inject vào system lượt này (pattern SKILL.md của fx/Grok Build).
-     Trần trùng khớp formatSkillsBlock — server tự cắt lại theo ngân sách. */
-  skills: z
-    .array(
-      z.object({
-        name: z.string().min(1).max(80),
-        description: z.string().max(200).optional(),
-        body: z.string().min(1).max(4000),
-      }),
-    )
-    .max(2)
-    .optional(),
+  /* Zero-Mem: khối bộ nhớ đã được client truy hồi và render sẵn. Server không
+     đọc được IndexedDB nên nhận chuỗi này; server chỉ bọc chống injection và
+     chèn vào system prompt. Trần 4.000 ký tự là lớp thứ hai sau lớp phía client. */
+  memoryEvidence: z.string().max(4_000).optional(),
   /* Kết quả tra cứu web của lượt này (tính năng "Tìm kiếm web" — /api/web).
      Trần ký tự khớp WEB_LIMITS; server chỉ format, không tin nội dung. */
   webContext: z
@@ -1110,8 +1101,8 @@ export async function POST(req: Request) {
       pdfContexts,
       agentTools,
       memories,
-      skills,
       skillIndex,
+      memoryEvidence,
       hints,
       memoryIndex,
       workspace: workspaceState,
@@ -2098,17 +2089,6 @@ export async function POST(req: Request) {
                           .join('\n\n') +
                           '\n[Cách dùng] Trả lời câu hỏi dựa trên nội dung file ở trên khi liên quan; trích dẫn kèm số trang nếu có.'
                       : '',
-                     /* Skills: chỉ thị điều chỉnh cách trả lời → đứng SAU
-                        persona để giữ lực (khác dữ liệu sự kiện đặt trước). */
-                     skills?.length
-                       ? formatSkillsBlock(
-                           skills.map((s) => ({
-                             name: s.name,
-                             description: s.description,
-                             body: s.body,
-                           })),
-                         )
-                        : '',
                         /* Curated Stack Skills (P2): tự động nạp kỹ năng khớp domain */
                         userQueryText
                           ? generateSkillsPrompt(matchSkillsForRequest(userQueryText))
@@ -2119,6 +2099,13 @@ export async function POST(req: Request) {
                            có prefix [LESSON:*]. Inject vào system prompt để model
                            không lặp lại lỗi cũ. Port từ cơ chế /reflect. */
                         formatLessonsBlock(extractLessons(chatMemories)),
+                        /* Zero-Mem: dữ liệu truy hồi từ kho cục bộ, KHÔNG phải
+                           mệnh lệnh — bọc `wrapUntrustedData` như mọi dữ liệu
+                           ngoài. Khối rỗng thì không chèn gì (chèn chuỗi rỗng
+                           làm prompt thừa vô nghĩa và lệch chỗ của các khối sau). */
+                        memoryEvidence
+                          ? wrapUntrustedData(memoryEvidence, 'zero-mem').content
+                          : '',
                         /* Khối [Workspace]: model KHÔNG có cách nào biết user đã
                           kết nối thư mục — thiếu khối này nó trả lời kiểu "tôi
                           không truy cập được máy bạn" mà thậm chí không thử

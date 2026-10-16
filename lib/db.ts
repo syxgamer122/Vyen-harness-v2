@@ -449,7 +449,6 @@ function cutAnnotationPreview(preview: string): string {
  *   subagentCall        lệnh tool của subagent (có args!)              ← giữ
  *   subagent            tiến độ subagent                               ← giữ
  *   memoryProposal      đề xuất ghi nhớ (client ghi thật vào DB)        ← giữ
- *   orchestratorAdopted badge nguồn gốc mục tiêu                      ← giữ
  *   capabilityProjection, attempt/totalAttempts/key/model (retry),
  *   hb (heartbeat), error                                         ← giữ
  *   type 'finish'       đọc bởi getFinishInfo; không có producer trong

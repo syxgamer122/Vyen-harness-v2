@@ -39,14 +39,13 @@
 ## Test Architecture
 - Test runner: Vitest (`npx vitest run`) with pure Node.js environment
 - Test suites:
-  - `tests/teamwork-dag.test.ts`: Covers DAG sorting, cycles, parallel branches, concurrency semaphores, backoff jitter formulas.
-  - `tests/teamwork-checkpoint.test.ts`: Covers memory & file stores, atomic persistence, pause & resume, idempotency.
-  - `tests/teamwork-hitl.test.ts`: Covers approval gate interrupts, token verification, decision states (`APPROVED`, `REJECTED`, `MODIFIED`).
-  - `tests/teamwork-visual.test.ts`: Covers diff rendering, flow sketches, code-shape AST outline, show-me format.
-  - `tests/teamwork-contracts-sandbox.test.ts`: Covers Zod contracts, provenance chains, pre/post flight gates, env scrubber, cwd lockdown, process tree timeout.
-  - `tests/teamwork-ledger-context.test.ts`: Covers bitemporal ledger ($T_v$ vs $T_t$), append-only JSONL, replay, progressive context tiers, ontology triples.
-  - `tests/teamwork-engine-integrated.test.ts`: Covers full end-to-end multi-agent workflow exercising DAG, checkpoints, approval gate, contracts, and ledger in headless CLI mode.
-  - Existing test files in `tests/` (168 file — 2,526 tests PASS sau đợt S3/S3b): Regression baseline (must remain 100% PASS).
+  - Existing test files in `tests/` — regression baseline (xem `package.json` → `npm test`; số file cụ thể không ghi cứng ở đây vì đổi mỗi đợt).
+- **2026-10-15**: toàn bộ suite `tests/teamwork-*.test.ts` (27 file) và các suite CLI
+  (`cli-surface`, `cli-recipe-runner`, `redteam-cli`, `interactive-agent`,
+  `zeromem-sarsed-integrated`) đã bị xoá cùng mã nguồn headless. Phần kiểm còn sống
+  của các mảng đó nằm ở suite chuyên dụng: `tests/zeromem.test.ts`,
+  `tests/sarsed-code.test.ts`, `tests/scheduler-runner.test.ts`,
+  `tests/scheduler-session.test.ts`, `tests/secret-registry.test.ts`.
 
 ## Real-World Application Scenarios (Tier 4)
 | # | Scenario | Features Exercised | Complexity |

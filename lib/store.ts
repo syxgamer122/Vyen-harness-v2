@@ -205,6 +205,15 @@ export interface Settings {
    * Node sandbox gọi MCP tools on-demand. Tắt mặc định — bật trong Cài đặt → Công cụ.
    */
   codeModeEnabled: boolean;
+  /**
+   * Zero-Mem (bộ nhớ 0 token): ghi TỰ ĐỘNG hoạt động của mỗi lượt vào kho cục
+   * bộ để agent tra lại ở lượt sau. Tắt mặc định — đây là LỰA CHỌN BẢO THỦ
+   * (2026-10-16): không ghi gì vào IndexedDB khi người dùng chưa bật.
+   *
+   * Còn `zeromem_query` / `zeromem_log` (tool của model) thì không phụ thuộc
+   * cờ này — cờ này chỉ quyết định có GHI TỰ ĐỘNG hay không.
+   */
+  zeromemEnabled: boolean;
   /** Mixture-of-models chains theo Category  */
   modelChains?: Record<CategoryId, ChainEntry[]>;
   /** Quy tắc can thiệp gọi tool do người dùng tự viết */
@@ -274,6 +283,7 @@ const DEFAULT_SETTINGS: Settings = {
   disabledSkills: [],
   modelRouting: { ...DEFAULT_MODEL_ROUTING },
   codeModeEnabled: false,
+  zeromemEnabled: false,
   modelChains: DEFAULT_CHAINS,
   toolcallRules: [],
   customSlashCommands: {},
@@ -386,6 +396,9 @@ export const useAppStore = create<AppState>()(
           forceEmulatedTools: s.settings.forceEmulatedTools,
           agentMode: s.settings.agentMode,
           stagingSandbox: s.settings.stagingSandbox,
+          /* ZeroMem: thiếu khoá này là F5 mất — mất luôn trạng thái bật/tắt
+             của bộ nhớ, và người dùng tưởng nó còn đang ghi. */
+          zeromemEnabled: s.settings.zeromemEnabled,
           autoPilot: s.settings.autoPilot,
           approvalPolicy: s.settings.approvalPolicy,
           toolPermissions: s.settings.toolPermissions,
@@ -451,6 +464,13 @@ export const useAppStore = create<AppState>()(
               typeof p.settings?.autoPilot === 'boolean'
                 ? p.settings.autoPilot
                 : current.settings.autoPilot,
+            /* Cổng ghi dữ liệu tự động: giá trị rác trong storage không được
+               chảy thẳng vào (nó quyết định có ghi bộ nhớ vào máy người
+               dùng hay không). */
+            zeromemEnabled:
+              typeof p.settings?.zeromemEnabled === 'boolean'
+                ? p.settings.zeromemEnabled
+                : current.settings.zeromemEnabled,
             approvalPolicy:
               p.settings?.approvalPolicy === 'always' ||
               p.settings?.approvalPolicy === 'smart' ||

@@ -252,14 +252,6 @@ export function buildRecallPack(
 }
 
 /**
- * Định dạng banner hiển thị trên giao diện chat
- */
-export function formatRecallBanner(pack: RecallPack): string | null {
-  if (!pack.items.length) return null;
-  return `🧠 Đã nhớ ${pack.items.length} ghi chú`;
-}
-
-/**
  * Định dạng khối ghi nhớ đã duyệt để chèn vào cuối system prompt
  */
 export function formatRecalledMemoriesBlock(memories: Array<{ text: string }>): string {
