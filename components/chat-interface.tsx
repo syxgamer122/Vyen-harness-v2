@@ -333,7 +333,6 @@ export default function ChatInterface() {
         onToggleAgentMode={orch.onToggleAgentMode}
         autoPilot={orch.autoPilot}
         approvalPolicy={orch.approvalPolicy}
-        onCycleAutoPilot={orch.onCycleAutoPilot}
         stagedFileCount={orch.stagingVersion >= 0 ? stagingCount(orch.stagingRef.current) : 0}
         onOpenStaging={orch.onOpenStaging}
         onOpenToolsPanel={orch.onOpenToolsPanel}

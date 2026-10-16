@@ -26,14 +26,44 @@ describe('Lệnh slash mở Cài đặt tới đúng tab (source-scan)', () => {
   });
 });
 
-describe('onCycleAutoPilot chỉ truyền approvalPolicy', () => {
-  const src = fs.readFileSync(path.resolve(__dirname, '../react/use-chat-orchestration.ts'), 'utf8');
+describe('Chế độ phê duyệt chỉ có MỘT nơi đổi trực quan (source-scan)', () => {
+  const orch = fs.readFileSync(
+    path.resolve(__dirname, '../react/use-chat-orchestration.ts'),
+    'utf8',
+  );
+  const composer = fs.readFileSync(
+    path.resolve(__dirname, '../components/composer.tsx'),
+    'utf8',
+  );
+
+  it('đã xoá onCycleAutoPilot — không còn nút xoay vòng 4 chế độ', () => {
+    // Đột biến bị chặn: dựng lại hàm xoay-vòng trong composer ⇒ phải nhấn 4 lần
+    // mới tới chế độ muốn, lại nằm trong cụm `overflow-x-auto` nên bị cuộn mất,
+    // và disable ở menu "Tác vụ" lại khác nút trên dải. Ô select ở Cài đặt ›
+    // Quyền & An toàn là nơi duy nhất còn cần.
+    expect(orch).not.toMatch(/onCycleAutoPilot/);
+    expect(composer).not.toMatch(/onCycleAutoPilot/);
+  });
+
+  it('pill trên dải công cụ là read-only, trỏ về ô select trong Cài đặt', () => {
+    // Vẫn phải đọc được "tôi đang ở chế độ nào" lúc chat, nhưng bấm vào không
+    // đổi được nữa. `approvalHint` tái dùng làm `title` để hướng dẫn.
+    expect(composer).toMatch(/approvalHint\(approvalPolicy, autoPilot\)/);
+    expect(composer).toMatch(/Quyền & An toàn/);
+  });
+
+  it('GIỮ /mode — phím tắt bàn phím, khác modality chứ không phải bản trùng', () => {
+    // Cố ý KHÔNG gỡ: `/mode` là lối vào bàn phím cho người dùng thành thạo.
+    // Xoá nó là quyết định sản phẩm, không phải dọn code chết — và
+    // `tests/boost-honesty.test.ts:56` dùng `if (slash.kind === 'mode') {` làm
+    // delimiter nên xoá sẽ làm hỏng cả file test lúc collect.
+    expect(orch).toMatch(/slash\.kind === 'mode'/);
+  });
 
   it('không truyền autoPilot kèm approvalPolicy — store tự suy ra rồi ghi đè', () => {
-    // `store.ts:355-357` tính `next.autoPilot` từ `approvalPolicy` và GHI ĐÈ giá
-    // trị truyền vào. Truyền thêm chỉ làm đọc code tưởng `autoPilot` còn là nút
-    // độc lập. Đột biến bị chặn: thêm lại `autoPilot:` vào một nhánh → đỏ.
-    expect(src).not.toMatch(/updateSettings\(\{\s*approvalPolicy:\s*'[a-z_]+',\s*autoPilot:/);
+    // `store.ts` tính `next.autoPilot` từ `approvalPolicy` và GHI ĐÈ giá trị
+    // truyền vào, nên nhánh `/mode` chỉ cần gửi `approvalPolicy`.
+    expect(orch).not.toMatch(/updateSettings\(\{\s*approvalPolicy:\s*'[a-z_]+',\s*autoPilot:/);
   });
 });
 

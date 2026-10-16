@@ -6309,28 +6309,6 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
     updateSettings({ agentMode: agentMode === 'plan' ? 'act' : 'plan' });
   }, [updateSettings, agentMode]);
 
-  const onCycleAutoPilot = useCallback(() => {
-    // Chu trình 4 chế độ: Manual (always) -> Smart (smart) -> Autonomous (never) -> Chat Only (chat_only) -> Manual (always)
-    //
-    // CHỈ truyền `approvalPolicy`. `store.ts:355-357` tự tính lại `autoPilot`
-    // và `agentTools` từ nó rồi GHI ĐÈ, nên `autoPilot` truyền vào là biến chết
-    // — đọc code tưởng nó còn là nút độc lập thì đang hiểu sai. Đọc
-    // `autoPilot` bên dưới để tương thích persist cũ vẫn đúng: đó là fallback,
-    // không phải đầu vào.
-    const current = approvalPolicy ?? (autoPilot ? 'smart' : 'always');
-    if (current === 'always') {
-      updateSettings({ approvalPolicy: 'smart' });
-    } else if (current === 'smart') {
-      updateSettings({ approvalPolicy: 'never' });
-    } else if (current === 'never') {
-      updateSettings({ approvalPolicy: 'chat_only' });
-    } else if (current === 'chat_only') {
-      updateSettings({ approvalPolicy: 'always' });
-    } else {
-      updateSettings({ approvalPolicy: 'smart' });
-    }
-  }, [updateSettings, autoPilot, approvalPolicy]);
-
   const onOpenStaging = useCallback(() => setStagingPanelOpen(true), []);
 
   const onOpenToolsPanel = useCallback(() => setToolsPanelOpen(true), []);
@@ -6497,7 +6475,6 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
     onToggleWebSearch,
     autoPilot,
     approvalPolicy,
-    onCycleAutoPilot,
     stagingVersion,
     stagingRef,
     onOpenStaging,

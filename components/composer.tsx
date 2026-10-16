@@ -618,7 +618,6 @@ interface ComposerProps {
   onToggleAgentMode?: () => void;
   autoPilot?: boolean;
   approvalPolicy?: 'always' | 'smart' | 'never' | 'chat_only';
-  onCycleAutoPilot?: () => void;
   goalLoopActive?: boolean;
   goalLoopInfo?: string;
   onGoalLoopClick?: (goalText: string) => void;
@@ -683,7 +682,6 @@ export const Composer = memo(function Composer({
   onToggleAgentMode,
   autoPilot,
   approvalPolicy,
-  onCycleAutoPilot,
   goalLoopActive,
   goalLoopInfo,
   onGoalLoopClick,
@@ -1080,21 +1078,6 @@ export const Composer = memo(function Composer({
       onClick: onToggleAgentMode,
     });
   }
-
-  if (onCycleAutoPilot) {
-    const currentPolicy = resolveApprovalPolicy(approvalPolicy, autoPilot);
-    sessionTasks.push({
-      key: 'auto-pilot',
-      icon: Zap,
-      active: currentPolicy === 'smart' || currentPolicy === 'never',
-      disabled: isStreaming,
-      label: `Chế độ phê duyệt: ${approvalPillLabel(currentPolicy, autoPilot)} · bấm để đổi`,
-      shortLabel: approvalShortLabel(currentPolicy, autoPilot),
-      description: approvalHint(currentPolicy, autoPilot),
-      onClick: onCycleAutoPilot,
-    });
-  }
-
   if (onToggleWebSearch) {
     sessionTasks.push({
       key: 'web',
@@ -1261,36 +1244,44 @@ export const Composer = memo(function Composer({
              */}
             <div className="flex items-center gap-2 flex-nowrap overflow-x-auto no-scrollbar min-w-0">
               <TaskMenu groups={taskGroups} />
-              {approvalPolicy && (
-                <button
-                  type="button"
-                  onClick={onCycleAutoPilot}
-                  title="Chế độ phê duyệt (bấm để đổi)"
-                  /*
-                   * BO GÓC THỐNG NHẤT CHO HÀNG DẢI CÔNG CỤ — `rounded-lg` 10px
-                   * (DESIGN.md §4.1: "control chính — nút, ô nhập, trigger").
-                   *
-                   * Trước đây đây là pill `rounded-full` `px-3 py-1`: bo tròn
-                   * đầy đủ lẫn thấp hơn hẳn (`py-1` ≈ 29px) nút "..." 32px
-                   * ngay bên cạnh — tức CÙNG một hàng mà vừa khác kiểu bo vừa
-                   * lệch cao, và mắt đọc nó là một hàng khác hẳn. Nay cùng
-                   * `rounded-lg` + `h-8` với nút bên cạnh nên đọc thành một
-                   * dải.
-                   *
-                   * Giữ `rounded-full` cho VIÊN THUỐC, không phải control
-                   * (chấm trạng thái, avatar). Đây là nút bấm có chữ, nên nó
-                   * thuộc bậc control. Nút gửi vẫn tròn — nó là hình tròn thật,
-                   * mỗi bề mặt tự do, khác với ô hộp chữ ở đây.
-                   */
-                  className="inline-flex h-8 items-center gap-1 rounded-lg bg-raised px-3 text-ui text-tertiary transition-colors hover:text-primary"
-                >
-                  {/* Icon chỉ mang màu, không mang nghĩa: nhãn cạnh nó đã nói
-                      chế độ nào. Giữ nó cùng bậc chữ với nhãn để không thành
-                      một dấu hiệu riêng. */}
-                  <Zap size={11} className="text-accent" aria-hidden="true" />
-                  <span>{approvalShortLabel(approvalPolicy, autoPilot)}</span>
-                </button>
-              )}
+              {/*
+               * CHỈ ĐỌC — nơi DUY NHẤT đổi chế độ là ô select ở Cài đặt ›
+               * Quyền & An toàn.
+               *
+               * Trước đây đây là nút bấm xoay vòng qua 4 chế độ. Ba lý do bỏ
+               * hành vi xoay:
+               *   - Phải nhấn 4 lần mới tới chế độ muốn, trong khi ô select chọn
+               *     thẳng và có `<option>` dài giải thích hậu quả từng chế độ.
+               *   - Nằm trong cụm `overflow-x-auto` nên trên màn hình hẹp nó bị
+               *     CUỘN MẤT — chính comment ngay dưới đây giải thích vì sao
+               *     chip staged phải nằm ngoài cụm đó với đúng lý do "trôi ra
+               *     ngoài tầm mắt".
+               *   - Cùng handler ở menu "Tác vụ" lại `disabled` khi đang stream,
+               *     còn nút này thì không ⇒ cùng một việc, hai mức quyền.
+               *
+               * GIỮ `<span>` thay vì xoá hẳn: đây là chỗ người dùng nhìn thấy
+               * lúc đang chat, và "tôi đang ở chế độ nào" là thứ cần đọc được
+               * mà không phải mở menu nào. `title` trỏ sang ô select.
+               *
+               * Bo góc `rounded-lg` (10px, DESIGN.md §4.1 — "control chính") giữ
+               * nguyên từ bản nút: `rounded-full` chỉ dành cho VIÊN THUỐC (chấm
+               * trạng thái, avatar), không phải ô hộp chữ. Nút gửi vẫn tròn —
+               * nó là hình tròn thật, mỗi bề mặt tự do.
+               *
+               * Lớp `text-ui text-tertiary` giữ nguyên có chủ đích:
+               * `tests/composer-affordances.test.ts:810` canh nó trong dải
+               * công cụ.
+               */}
+              <span
+                title={`${approvalHint(approvalPolicy, autoPilot)} — đổi ở Cài đặt › Quyền & An toàn.`}
+                className="inline-flex h-8 flex-shrink-0 items-center gap-1 rounded-lg bg-raised px-3 text-ui text-tertiary"
+              >
+                {/* Icon chỉ mang màu, không mang nghĩa: nhãn cạnh nó đã nói
+                    chế độ nào. Giữ nó cùng bậc chữ với nhãn để không thành
+                    một dấu hiệu riêng. */}
+                <Zap size={11} className="text-accent" aria-hidden="true" />
+                <span>{approvalShortLabel(approvalPolicy, autoPilot)}</span>
+              </span>
             </div>
             {/*
              * File đã staged nhưng chưa ghi đĩa: phải thấy được mà không cần

@@ -93,7 +93,7 @@ describe('updateSettings — approvalPolicy là nguồn sự thật duy nhất',
    * `agentTools` và `autoPilot` là GIÁ TRỊ SUY RA, không phải setting độc lập:
    * `store.ts:355-357` tính cả hai từ `approvalPolicy` rồi ghi đè lên bất kỳ thứ
    * gì caller truyền vào. Gọi chỉ với `approvalPolicy` phải cho ra đủ ba khoá —
-   * đây là hợp đồng mà `onCycleAutoPilot` dựa vào sau khi bỏ tham số thừa.
+   * đây là hợp đồng mà nhánh `/mode` dựa vào.
    */
   it('set approvalPolicy tự suy ra autoPilot + agentTools', () => {
     const set = useAppStore.getState().updateSettings;
