@@ -6227,7 +6227,7 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
           }
 
           if (slash.kind === 'skills') {
-            useAppStore.getState().openSettings('skills');
+            useAppStore.getState().openSettings('extensions');
             return true;
           }
 
@@ -6238,12 +6238,12 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
 
           if (slash.kind === 'tools') {
             /*
-             * `'safety'`, KHÔNG phải alias cũ `'chung'` — alias đó map sang tab
-             * `appearance` (`settings-tabs.ts:98-99`), và tab đó không có cài đặt
-             * công cụ nào: chỉ có tham số model, nhập liệu và hiệu năng. Người dùng
-             * gõ `/tools` sẽ bị dẫn tới một tab trống rồi nghe toast nói "đã mở cài
-             * đặt công cụ". `resolveSettingsTab` giữ `'safety'` nguyên vẹn qua nhánh
-             * default của nó.
+             * `'safety'` — id tab HIỆN HÀNH, không phải alias cũ `'chung'`.
+             *
+             * Lý do: `/tools` hứa mở cài đặt công cụ, nhưng alias `'chung'` từng
+             * map sang tab `appearance`, và tab đó không có cài đặt công cụ nào —
+             * chỉ có tham số mô hình, nhập liệu và hiệu năng hiển thị. Người dùng bị
+             * dẫn tới một tab trống rồi nghe toast nói "đã mở cài đặt công cụ".
              */
             useAppStore.getState().openSettings('safety');
             if (slash.query) {
@@ -6253,7 +6253,7 @@ export function useChatOrchestration(options?: UseChatOrchestrationOptions) {
           }
 
           if (slash.kind === 'cost') {
-            useAppStore.getState().openSettings('stats');
+            useAppStore.getState().openSettings('data');
             return true;
           }
 
