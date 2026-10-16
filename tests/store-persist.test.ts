@@ -137,7 +137,9 @@ describe('modelChains (Mixture-of-Models) đã bị gỡ khỏi Settings', () =>
    * là test bảo vệ ranh giới, không phải test chỉ "mọi thứ biến mất".
    */
   it('không còn field modelChains trong Settings', () => {
-    const s = useAppStore.getState().settings as Record<string, unknown>;
+    // Ép kiểu qua `unknown`: `Settings`/`AppState` là interface nên không có
+    // index signature, `as Record<string, unknown>` trực tiếp là TS2352.
+    const s = useAppStore.getState().settings as unknown as Record<string, unknown>;
     expect('modelChains' in s, 'modelChains phải bị gỡ khỏi Settings').toBe(false);
   });
 
@@ -148,7 +150,9 @@ describe('modelChains (Mixture-of-Models) đã bị gỡ khỏi Settings', () =>
   });
 
   it('GIỮ modelRouting — Lead/Worker đã nối đúng vào body, không được gỡ theo', () => {
-    const s = useAppStore.getState().settings as Record<string, unknown>;
+    // Ép kiểu qua `unknown`: `Settings`/`AppState` là interface nên không có
+    // index signature, `as Record<string, unknown>` trực tiếp là TS2352.
+    const s = useAppStore.getState().settings as unknown as Record<string, unknown>;
     expect(s).toHaveProperty('modelRouting');
     const { partialize } = useAppStore.persist.getOptions() as PersistOptions;
     const persisted = partialize!(useAppStore.getState());
@@ -167,12 +171,12 @@ describe('dead state theme đã bị gỡ (app light-only)', () => {
    * nút bấm không đổi màu, nên phải gỡ chứ không phải thêm UI.
    */
   it('không còn state theme trong store', () => {
-    const s = useAppStore.getState() as Record<string, unknown>;
+    const s = useAppStore.getState() as unknown as Record<string, unknown>;
     expect('theme' in s, 'state theme phải bị gỡ').toBe(false);
   });
 
   it('không còn action setTheme', () => {
-    const s = useAppStore.getState() as Record<string, unknown>;
+    const s = useAppStore.getState() as unknown as Record<string, unknown>;
     expect('setTheme' in s, 'action setTheme phải bị gỡ').toBe(false);
   });
 
