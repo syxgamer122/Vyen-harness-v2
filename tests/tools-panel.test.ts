@@ -277,6 +277,24 @@ describe('TOOL_CATEGORY_LABELS - localize tiếng Việt, bỏ emoji icon', () =
   });
 });
 
+describe('tools-panel ghi Dexie khi đổi quyền nhóm (chống mất cấu hình)', () => {
+  const src = fs.readFileSync(path.resolve(__dirname, '../components/tools-panel.tsx'), 'utf8');
+
+  it('gọi saveToolPermissionToDb, không chỉ ghi Zustand', () => {
+    // Đột biến bị chặn: xoá lời gọi này → panel chỉ ghi store, còn lúc khởi động
+    // `use-chat-orchestration.ts:493-499` hợp `{ ...cur, ...dbPerms }` nên Dexie
+    // thắng ⇒ đổi quyền ở đây rồi F5 là mất, không có gì báo.
+    expect(src).toMatch(/saveToolPermissionToDb/);
+  });
+
+  it('ghi khoá là tên nhóm, trùng cách bảng per-tool ghi tên tool trần', () => {
+    // Cột `toolName` của bảng Dexie (`lib/db.ts:777`) là PK, một ô cho một tên.
+    // Đổi sang khoá khác (vd thêm tiền tố) là người dùng có hai quyền riêng cho
+    // cùng một nhóm — đúng thứ bảng per-tool không cần và gây rối.
+    expect(src).toMatch(/saveToolPermissionToDb\(\s*section\.category\s*,/);
+  });
+});
+
 describe('TOOL_CATEGORY_ICON_COMPONENTS - icon map dùng chung cho hai UI', () => {
   it('mọi tên icon của 8 nhóm TOOL_CATEGORY_LABELS đều resolve được component', () => {
     // Đột biến bị chặn: thêm nhóm mới vào catalog mà quên thêm icon vào

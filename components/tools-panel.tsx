@@ -19,6 +19,7 @@ import {
   type PermissionOverride,
   type ToolPermissions,
 } from '@/lib/store';
+import { saveToolPermissionToDb } from '@/lib/tool-permissions';
 
 /* Pure helpers: export để test thuần (repo không có hạ tầng DOM). */
 
@@ -190,13 +191,28 @@ export function ToolsPanel({ open, onClose }: { open: boolean; onClose: () => vo
                     id={`tools-panel-perm-${section.category}`}
                     value={toolPermissions[section.category] ?? 'default'}
                     onChange={(e) => {
+                      const perm = e.target.value as PermissionOverride;
                       updateSettings({
                         toolPermissions: updateToolPermission(
                           toolPermissions,
                           section.category,
-                          e.target.value as PermissionOverride,
+                          perm,
                         ),
                       });
+                      /*
+                       * PHẢI ghi Dexie, không chỉ Zustand.
+                       *
+                       * Lúc khởi động app, `use-chat-orchestration.ts:493-499` hợp
+                       * quyền theo `{ ...cur, ...dbPerms }` — Dexie THẮNG store. Bảng
+                       * per-tool trong Cài đặt đã ghi cả hai nên không sao; riêng
+                       * đổi quyền ở panel này thì chỉ có store, và sau F5 giá trị
+                       * cũ trong Dexie quay lại, mất vĩnh viễn.
+                       *
+                       * Khoá ghi vào đúng cột `toolName` của bảng `toolPermissions`
+                       * (`lib/db.ts:777`): `section.category` là tên khoá nhóm,
+                       * trùng cách bảng per-tool ghi tên tool trần.
+                       */
+                      void saveToolPermissionToDb(section.category, perm);
                     }}
                     className="field-sm min-h-[38px] w-[7.5rem] flex-none text-meta"
                   >
