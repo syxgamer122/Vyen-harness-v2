@@ -16,7 +16,6 @@
 import type { ToolPermissions, PermissionOverride } from '@/lib/store';
 import { TOOL_CATEGORY_MAP } from '@/lib/store';
 import { getEffectiveToolPermission, isDynamicMcpTool } from '@/lib/tool-permissions';
-import { evaluateToolcallRules, type ToolcallRule } from '@/lib/toolcall-rules';
 import { isProtectedPath, validateSafeRelativePath } from '@/lib/path-utils';
 import { compileShellCommand, isGitAutoApprovable } from '@/lib/shell-policy.cjs';
 import {
@@ -41,8 +40,6 @@ export interface AutoApproveContext {
   conversationId?: string | null;
   /** Per-tool permission overrides (optional for backward compat). */
   toolPermissions?: ToolPermissions;
-  /** User-defined toolcall rules. */
-  toolcallRules?: ToolcallRule[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -318,13 +315,6 @@ export function shouldAutoApprove(ctx: AutoApproveContext): boolean {
   // ALWAYS require explicit user approval (ask), even in 'never' mode or override 'auto'
   if (targetsProtectedPath(ctx.toolName, ctx.args)) {
     return false;
-  }
-
-  // ── 1. User Toolcall Rules (mức ưu tiên trước policy) ──
-  if (ctx.toolcallRules && ctx.toolcallRules.length > 0) {
-    const verdict = evaluateToolcallRules(ctx.toolName, ctx.args, ctx.toolcallRules);
-    if (verdict.decision === 'deny' || verdict.decision === 'ask') return false;
-    if (verdict.decision === 'allow') return true;
   }
 
   // ── Per-tool override check (highest priority) ──

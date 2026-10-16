@@ -19,7 +19,6 @@ import {
   TOOL_CATEGORY_MAP,
   type ToolCategory,
 } from '@/lib/tool-catalog';
-import type { ToolcallRule } from '@/lib/toolcall-rules';
 import {
   DEFAULT_MODEL_ROUTING,
   normalizeModelRoutingConfig,
@@ -234,8 +233,6 @@ export interface Settings {
    * Lead/Worker Routing (`modelRouting`) thì ĐÃ nối đúng vào body
    * (`use-chat-orchestration.ts:940-943`) nên được giữ.
    */
-  /** Quy tắc can thiệp gọi tool do người dùng tự viết */
-  toolcallRules?: ToolcallRule[];
   /** Ánh xạ slash command tùy biến /<tên> -> recipeId (P2-10). */
   customSlashCommands: Record<string, string>;
 }
@@ -299,7 +296,6 @@ const DEFAULT_SETTINGS: Settings = {
   modelRouting: { ...DEFAULT_MODEL_ROUTING },
   codeModeEnabled: false,
   zeromemEnabled: false,
-  toolcallRules: [],
   customSlashCommands: {},
 };
 
@@ -420,7 +416,6 @@ export const useAppStore = create<AppState>()(
           disabledSkills: s.settings.disabledSkills,
           modelRouting: s.settings.modelRouting,
           codeModeEnabled: s.settings.codeModeEnabled,
-          toolcallRules: s.settings.toolcallRules,
           customSlashCommands: s.settings.customSlashCommands,
         },
       }),
