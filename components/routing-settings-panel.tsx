@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import {
   DEFAULT_MODEL_ROUTING,
